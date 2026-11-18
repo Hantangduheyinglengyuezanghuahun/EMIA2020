@@ -6,3 +6,4 @@ __pycache__/
 event.json
 *.eml
 samples/glucose.json
+output/

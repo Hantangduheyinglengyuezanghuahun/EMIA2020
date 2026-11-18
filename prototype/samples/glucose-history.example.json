@@ -1,0 +1,30 @@
+{
+  "synthetic": true,
+  "current": {
+    "value": 138,
+    "unit": "mg/dL",
+    "measured_at": "2026-11-13T12:39:26.903333+00:00"
+  },
+  "history": [
+    {
+      "value": 108,
+      "unit": "mg/dL",
+      "measured_at": "2026-11-13T10:39:26.903333+00:00"
+    },
+    {
+      "value": 116,
+      "unit": "mg/dL",
+      "measured_at": "2026-11-13T11:09:26.903333+00:00"
+    },
+    {
+      "value": 128,
+      "unit": "mg/dL",
+      "measured_at": "2026-11-13T11:39:26.903333+00:00"
+    },
+    {
+      "value": 145,
+      "unit": "mg/dL",
+      "measured_at": "2026-11-13T12:09:26.903333+00:00"
+    }
+  ]
+}

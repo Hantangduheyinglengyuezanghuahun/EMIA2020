@@ -1,0 +1,34 @@
+MEAL AND GLUCOSE REPORT
+SIMULATED DEMONSTRATION
+
+Patient: demo-patient-001
+Meal recorded at: 09 Nov 2026, 16:36 (UTC+0800)
+
+RECORDED GLUCOSE
+No measured glucose reading was provided.
+
+SIMULATED FOOD ESTIMATES
+Sugar: 12 g (illustrative range: 6 to 20 g)
+Total carbohydrates: 60 g (illustrative range: 40 to 85 g)
+
+SIMULATED CURRENT GLUCOSE
+Estimated glucose: 140 mg/dL (illustrative range: 100 to 190 mg/dL)
+This is a fixed demo example, not a measured reading or a validated prediction.
+
+CAREGIVER NOTES
+Demo report for demo-patient-001: a measured glucose reading was not provided.
+Food and glucose estimates are fixed examples and do not describe this
+patient's condition. Caregiver: review the attached meal photo and confirm the
+recorded reading and time. Follow the patient's existing care plan; ask their
+clinician about treatment questions. Insulin timing, dose recommendations and
+emergency assessment are unavailable in this demo.
+
+MEAL PHOTO
+See the attached meal image.
+
+IMPORTANT LIMITATIONS
+DEMO ONLY: food and current glucose estimates and suggestions are simulated.
+Ranges are illustrative, not validated 90% confidence intervals. Do not use
+these outputs to decide insulin timing, dosage, or medical urgency. Use actual
+glucose measurements and the patient's clinician-provided care plan. This
+prototype does not detect emergencies.

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Caregiver meal update</title></head>
+<body style="margin:0;background:#EDF2F7;font-family:Arial,Helvetica,sans-serif;color:#24364B">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:24px 10px">
+<table role="presentation" width="800" cellspacing="0" cellpadding="0" style="width:100%;max-width:800px;table-layout:fixed;background:#FFFFFF;border-radius:14px">
+<tr><td style="padding:12px 28px;background:#142D48;color:#FFFFFF;border-radius:14px 14px 0 0">
+<p style="margin:0;font-size:12px;color:#D7E3EE">CARE COMPANION · PROTOTYPE · $patient</p>
+<p style="margin:4px 0 0;font-size:11px;color:#D7E3EE">Prepared $prepared</p></td></tr>
+<tr><td style="padding:14px 28px 0">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="padding:20px;background:$background;border-left:6px solid $color">
+<p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:$color">CAREGIVER ACTION · DO THIS FIRST · $level</p>
+<h1 style="margin:0 0 14px;font-size:25px;color:$color">$action_title</h1>
+<p style="margin:0 0 14px;font-size:17px;line-height:1.5"><b>Sugar: more or less?</b><br>$sugar_action</p>
+<p style="margin:0;font-size:17px;line-height:1.5"><b>Medical help</b><br>$doctor_action</p>
+<p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#64748B">$action_detail</p></td></tr></table>
+<p style="font-size:12px;color:#64748B;line-height:1.6">Colour key: red = urgent help · amber = check / review · teal = continue monitoring. Screening is based on supplied readings and symptoms; personal care plans take priority.</p>
+</td></tr>
+<tr><td style="padding:4px 28px 16px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="padding:20px;background:#F4EFFF;border-left:6px solid #8055CF"><p style="margin:0;font-size:14px;font-weight:bold;color:#7050A5">ESTIMATED CURRENT GLUCOSE (SIMULATED)</p><p style="margin:10px 0;font-size:38px;font-weight:bold;color:#7050A5">$estimated_current</p><p style="margin:0;font-size:14px;line-height:1.6">Illustrative range: $estimated_range<br>Fixed demo estimate; not a measured reading or a validated prediction.</p></td></tr></table></td></tr>
+<tr><td style="padding:4px 28px 20px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
+<td width="50%" valign="top" style="padding:16px;background:#F3F7FB"><p style="margin:0;color:#64748B;font-size:12px">$current_label</p><p style="margin:10px 0;font-size:30px;font-weight:bold;color:#142D48">$current</p><p style="margin:0;font-size:12px;line-height:1.6">$measured_at<br>$freshness</p></td>
+<td width="50%" valign="top" style="padding:16px;background:#F4EFFF"><p style="margin:0;color:#7050A5;font-size:12px">+30 MIN DEMO FORECAST</p><p style="margin:10px 0;font-size:30px;font-weight:bold;color:#7050A5">$forecast_value</p><p style="margin:0;font-size:12px;line-height:1.6">Illustrative range: $forecast_range mg/dL<br>Fixed example · unvalidated</p></td>
+</tr></table>
+</td></tr>
+<tr><td style="padding:0 12px 22px"><h2 style="margin:0 0 8px;font-size:21px">Glucose: previous, latest and future</h2>
+<p style="font-size:13px;line-height:1.6;color:#64748B">$history_note. All chart values use mg/dL; times use Hong Kong time (UTC+08:00).</p>
+<img src="$glucose_image" alt="Glucose history, current simulated estimate and dashed future forecast, with illustrative ranges." width="776" style="display:block;width:100%;height:auto;border:1px solid #E2E8F0">
+<p style="font-size:12px;color:#64748B;line-height:1.6">The purple NOW marker is the estimated current glucose. The dashed forecast and shaded range are fixed demo values. They do not drive alerts. Horizontal 70/180 reference lines are illustrative; individual targets vary. When no readings are supplied, labelled DEMO values fill this display and are excluded from advice.</p>
+<p style="font-size:13px;line-height:1.6">$history_values</p></td></tr>
+<tr><td style="padding:0 28px 24px"><h2 style="margin:0 0 12px;font-size:21px">Meal photo and food analysis</h2>
+<img src="$meal_image" alt="Original supplied meal photograph" width="644" style="display:block;width:100%;max-height:460px;object-fit:contain;background:#F8FAFC;border-radius:8px">
+<p style="font-size:12px;color:#64748B">Meal time: $meal_time · $food_source</p>
+<img src="$food_image" alt="Simulated total carbohydrates 60 grams, range 40–85; sugar 12 grams, range 6–20. Sugar is part of total carbohydrates." width="776" style="display:block;width:100%;height:auto;border:1px solid #E2E8F0">
+<p style="font-size:13px;line-height:1.6">Total carbohydrates: <b>60 g</b> (40–85 g) · Sugar: <b>12 g</b> (6–20 g). Both are fixed demo estimates, independent of the photo. Sugar is included within total carbohydrates.</p></td></tr>
+<tr><td style="padding:0 28px 24px"><h2 style="font-size:21px;margin:0 0 10px">Caregiver notes</h2><p style="line-height:1.7;margin:0">$suggestions</p></td></tr>
+<tr><td style="padding:22px 28px;background:#F3F7FB;border-radius:0 0 14px 14px"><b style="font-size:13px">About this prototype</b><p style="font-size:12px;line-height:1.7">$warning</p>
+<p style="font-size:12px;line-height:1.7">No insulin timing or dose advice. Severe symptoms require help regardless of the colour shown here. Email is not an emergency monitoring channel.</p>
+<p style="font-size:11px;line-height:1.6"><a href="https://www.cdc.gov/diabetes/treatment/treatment-low-blood-sugar-hypoglycemia.html">Low-glucose guidance</a> · <a href="https://www.cdc.gov/diabetes/about/diabetic-ketoacidosis.html">High-glucose emergency signs</a></p></td></tr>
+</table></td></tr></table></body></html>

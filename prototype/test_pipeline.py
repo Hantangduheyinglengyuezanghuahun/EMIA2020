@@ -165,7 +165,8 @@ class PipelineTests(unittest.TestCase):
         with serving(receiver), patch.dict(os.environ, {
             "SMTP_HOST": "127.0.0.1", "SMTP_PORT": str(receiver.server_address[1]),
             "SMTP_MODE": "plain", "SMTP_FROM": "sender@example.test", "SMTP_TO": "caregiver@example.test",
-        }, clear=True):
+            "SMTP_USER": "", "SMTP_PASSWORD": "",
+        }):
             status, result = self.request(path="/events")
         return status, result, receiver.messages
 
@@ -175,10 +176,36 @@ class PipelineTests(unittest.TestCase):
         message = BytesParser(policy=policy.default).parsebytes(messages[0])
         self.assertEqual(message["To"], "caregiver@example.test")
         self.assertIn("SIMULATED DEMO", message["Subject"])
-        attachment, = list(message.iter_attachments())
+        attachment, = [part for part in message.walk() if part.get_filename() == "meal.png"]
         self.assertEqual(attachment.get_payload(decode=True), PNG)
         self.assertEqual(attachment.get_content_type(), "image/png")
-        self.assertIn('"value": 7.2', message.get_body(preferencelist=("plain",)).get_content())
+        html = message.get_body(preferencelist=("html",)).get_content()
+        self.assertIn("cid:glucose-chart", html)
+        self.assertIn("CAREGIVER ACTION", html)
+        self.assertEqual(len([part for part in message.walk() if part.get_content_type() == "image/png"]), 3)
+        body = message.get_body(preferencelist=("plain",)).get_content()
+        self.assertIn("Measured glucose: 7.2 mmol/L", body)
+        self.assertIn("Measurement time: 09 Nov 2026, 11:55 (UTC+0800)", body)
+        self.assertIn("Sugar: 12 g (illustrative range: 6 to 20 g)", body)
+        self.assertIn("Estimated glucose: 140 mg/dL", body)
+        self.assertNotIn('"original_information"', body)
+
+    def test_email_without_measured_glucose(self):
+        event, raw, subtype = server.validate_event(EVENT)
+        event["glucose"] = None
+        body = server.format_email_report(server.analyze(event, raw))
+        self.assertIn("No measured glucose reading was provided.", body)
+        self.assertIn("SIMULATED CURRENT GLUCOSE", body)
+        self.assertIn("not a measured reading", body)
+        self.assertIn("CAREGIVER NOTES", body)
+        self.assertIn("not validated 90% confidence intervals", body)
+
+    def test_email_preserves_mgdl_measurement(self):
+        event, raw, subtype = server.validate_event(EVENT)
+        event["glucose"].update(value=130, unit="mg/dL")
+        body = server.format_email_report(server.analyze(event, raw))
+        self.assertIn("Measured glucose: 130 mg/dL", body)
+        self.assertIn("Total carbohydrates: 60 g", body)
 
     def test_smtp_rejection_is_failure(self):
         status, result, messages = self.smtp_roundtrip(reject=True)
@@ -198,7 +225,7 @@ class PipelineTests(unittest.TestCase):
         event, raw, subtype = server.validate_event(EVENT)
         with patch.dict(os.environ, {"SMTP_HOST": "example.test", "SMTP_FROM": "a@example.test",
                                    "SMTP_TO": "b@example.test", "SMTP_USER": "test-user",
-                                   "SMTP_PASSWORD": "test-secret"}, clear=True), patch.object(server.smtplib, "SMTP") as smtp:
+                                   "SMTP_PASSWORD": "test-secret", "SMTP_PORT": "587", "SMTP_MODE": "starttls"}), patch.object(server.smtplib, "SMTP") as smtp:
             server.send_email(server.analyze(event, raw), raw, subtype)
             client = smtp.return_value.__enter__.return_value
             client.starttls.assert_called_once()

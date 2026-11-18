@@ -1,4 +1,14 @@
+Chinese email option: [complete changed-line explanation](CHINESE_EMAIL_WALKTHROUGH.md).
+
+Latest chart size and current-estimate changes: [complete line-by-line explanation](CHART_ESTIMATE_WALKTHROUGH.md).
+
 # Complete code walkthrough
+
+The later advice-first layout and numeric demo display fill are documented in [ADVICE_LAYOUT_WALKTHROUGH.md](ADVICE_LAYOUT_WALKTHROUGH.md). It supersedes the preceding visual implementation only for the opening layout and absent-data display; original measurements and clinical-screening inputs remain separate from the display examples.
+
+The 13 November HTML email, chart renderer, history schema and measured-reading screening additions are documented line by line in [VISUAL_EMAIL_WALKTHROUGH.md](VISUAL_EMAIL_WALKTHROUGH.md). Earlier line numbers below describe the preceding implementation; that new document contains the current source and explanations for added/modified components. The original plain-text body remains the email's fallback alternative.
+
+Readable-email formatting and all added/replaced code lines are documented in [EMAIL_WALKTHROUGH.md](EMAIL_WALKTHROUGH.md). Existing server/test line references below have been adjusted to the current files; the replaced JSON-body lines are superseded by that walkthrough.
 
 Publication preparation adds a root README linking the prototype and its tests, plus a secret-free `.env.example` JSON template. Its host, port and mode select Gmail STARTTLS; user/sender/recipient/password are placeholders to replace only in an ignored local copy. The new `samples/glucose.json` ignore rule excludes an optional patient measurement file. The client example's `cd prototype` and `samples\demo-meal.png` path now work relative to a clone rather than a developer-specific absolute directory. Personal email addresses in the historical progress record were replaced by configuration-field references. These are documentation/configuration-example changes only; no Python behavior changed.
 
@@ -25,217 +35,216 @@ The production path is validation -> fixed food stub -> fixed glucose stub -> su
 | 12 | `from email.message import EmailMessage` | Import EmailMessage from the standard library to construct standards-based MIME messages and attachments. |
 | 13 | `from email.utils import parseaddr` | Import parseaddr from the standard library to check that configured recipients and senders are plain addresses. |
 | 14 | `from http.server import BaseHTTPRequestHandler, HTTPServer` | Import BaseHTTPRequestHandler, HTTPServer from the standard library to serve the local JSON API without third-party dependencies. |
-| 16 | `MAX_IMAGE = 5 * 1024 * 1024` | Set the decoded image ceiling to 5 MiB (5 times 1024 squared bytes) to bound attachment memory use. |
-| 17 | `MAX_BODY = 7 * 1024 * 1024` | Set the JSON request ceiling to 7 MiB, allowing base64 expansion while bounding input memory. |
-| 18 | `DISCLAIMER = (` | Begin the shared warning string used in API reports and email bodies. |
-| 19 | `"DEMO ONLY: food and current glucose estimates and suggestions are simulated. "` | State that food, current glucose and suggestions are simulated so recipients know their source. |
-| 20 | `"Ranges are illustrative, not validated 90% confidence intervals. "` | Explain that the ranges have no validated 90% confidence meaning. |
-| 21 | `"Do not use these outputs to decide insulin timing, dosage, or medical urgency. "` | Exclude insulin timing, dose and urgency decisions from the permitted use of the output. |
-| 22 | `"Use actual glucose measurements and the patient's clinician-provided care plan. "` | Direct users to actual measurements and the existing clinician-provided plan. |
-| 23 | `"This prototype does not detect emergencies."` | Explicitly disclose that the prototype does not detect emergencies. |
-| 24 | `)` | Close the multiline expression above; its values and purpose are explained on the preceding lines. |
-| 27 | `def timestamp(value):` | Define the timestamp function: Validate an ISO 8601 string with timezone; return the original string. |
-| 28 | `"""Validate an ISO 8601 string with timezone; return the original string."""` | Document the surrounding module or callable: Validate an ISO 8601 string with timezone; return the original string. |
-| 29 | `if not isinstance(value, str) or len(value) > 64:` | Require a string of at most 64 characters before attempting date parsing. |
-| 30 | `raise ValueError("A timestamp with timezone is required.")` | Reject a missing, incorrectly typed or excessively long timestamp with a validation error. |
-| 31 | `try:` | Begin protected parsing so invalid date syntax can become a controlled validation failure. |
-| 32 | `parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))` | Replace the UTC suffix Z with +00:00 for Python 3.10 compatibility, then parse the date and time. |
-| 33 | `except ValueError:` | Handle a date/time parsing failure locally. |
-| 34 | `raise ValueError("Use an ISO 8601 timestamp with timezone.") from None` | Raise a clearer validation message without attaching the low-level parsing traceback as its cause. |
-| 35 | `if parsed.utcoffset() is None:` | Check whether the parsed date has a timezone offset; an absent offset makes the time ambiguous. |
-| 36 | `raise ValueError("Timestamps must include a timezone.")` | Reject dates without a timezone so capture and measurement times can be compared later. |
-| 37 | `return value` | Return the original validated string to preserve the supplied timestamp representation. |
-| 40 | `def validate_event(data):` | Define the validate_event function: Return (normalized event dict, image bytes, MIME subtype); no I/O. |
-| 41 | `"""Return (normalized event dict, image bytes, MIME subtype); no I/O.` | Document the surrounding module or callable: Return (normalized event dict, image bytes, MIME subtype); no I/O. |
-| 43 | `Input is a JSON object with patient_id, meal_captured_at, image and optional` | Document the surrounding module or callable: Input is a JSON object with patient_id, meal_captured_at, image and optional |
-| 44 | `glucose. Glucose values are positive mg/dL or mmol/L measurements, not estimates.` | Document the surrounding module or callable: glucose. Glucose values are positive mg/dL or mmol/L measurements, not estimates. |
-| 45 | `Only PNG/JPEG signatures are checked; this is not full image decoding.` | Document the surrounding module or callable: Only PNG/JPEG signatures are checked; this is not full image decoding. |
-| 46 | `"""` | Document the surrounding module or callable:  |
-| 47 | `if not isinstance(data, dict):` | Require the top-level JSON value to be an object, rather than a list or primitive. |
-| 48 | `raise ValueError("The request must be a JSON object.")` | Stop validation with an object-schema error when that requirement fails. |
-| 49 | `patient = data.get("patient_id")` | Read patient_id using get so an absent field becomes None and follows the same validation path. |
-| 50 | `if not isinstance(patient, str) or not patient.strip() or len(patient) > 100:` | Require a string identifier containing non-whitespace text and limit it to 100 characters. |
-| 51 | `raise ValueError("patient_id must be a nonempty string of at most 100 characters.")` | Reject an invalid identifier before it reaches the report or email. |
-| 52 | `captured = timestamp(data.get("meal_captured_at"))` | Validate the meal capture timestamp with the shared timezone-aware parser. |
-| 53 | `picture = data.get("image")` | Read the image object without assuming the client supplied it. |
-| 54 | `if not isinstance(picture, dict):` | Require an object containing the image fields. |
-| 55 | `raise ValueError("image must contain content_base64.")` | Reject a missing or incorrectly typed image object. |
-| 56 | `encoded = picture.get("content_base64")` | Extract the base64 image text; image URLs are not fetched. |
-| 57 | `if not isinstance(encoded, str) or len(encoded) > 4 * ((MAX_IMAGE + 2) // 3):` | Require a string and cap its encoded length at four characters per three allowed image bytes, rounded up. |
-| 58 | `raise ValueError("Image must be base64 and no larger than 5 MiB decoded.")` | Reject malformed types or excessive encoded lengths before decoding them. |
-| 59 | `try:` | Begin strict base64 conversion with a controlled error path. |
-| 60 | `raw = base64.b64decode(encoded, validate=True)` | Decode to bytes and reject characters outside the base64 alphabet through validate=True. |
-| 61 | `except (ValueError, binascii.Error):` | Catch both ordinary value errors and binary-decoding errors raised by base64 conversion. |
-| 62 | `raise ValueError("Invalid base64 image.") from None` | Replace those decoder errors with a safe image-validation message. |
-| 63 | `if not raw or len(raw) > MAX_IMAGE:` | Check the actual decoded length, rejecting both empty images and anything over 5 MiB. |
-| 64 | `raise ValueError("Image must be nonempty and no larger than 5 MiB.")` | Raise a validation error if the decoded payload violates the size limit. |
-| 65 | `if raw.startswith(b"\x89PNG\r\n\x1a\n"):` | Check the eight-byte PNG signature; this identifies the declared format without full decoding. |
-| 66 | `subtype = "png"` | Select the PNG MIME subtype and attachment extension when the signature matches. |
-| 67 | `elif raw.startswith(b"\xff\xd8\xff"):` | Otherwise check the leading three JPEG marker bytes. |
-| 68 | `subtype = "jpeg"` | Select the JPEG MIME subtype and attachment extension for a matching signature. |
-| 69 | `else:` | Use the alternate branch when neither supported image signature matches. |
-| 70 | `raise ValueError("Only PNG or JPEG image signatures are accepted.")` | Reject unsupported formats rather than attaching arbitrary binary data as an image. |
-| 71 | `glucose = data.get("glucose")` | Read optional glucose; an omitted field and explicit null both produce None. |
-| 72 | `if glucose is not None:` | Validate glucose fields only when a reading has actually been supplied. |
-| 73 | `if not isinstance(glucose, dict):` | Require a supplied glucose reading to be an object. |
-| 74 | `raise ValueError("glucose must be an object or null.")` | Reject malformed glucose containers without inventing a measurement. |
-| 75 | `value, unit = glucose.get("value"), glucose.get("unit")` | Extract the numeric measurement and its declared unit for independent validation. |
-| 76 | `if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:` | Allow only exact int/float types, excluding booleans, and require a finite positive value. |
-| 77 | `raise ValueError("glucose.value must be a finite positive number.")` | Reject text, booleans, zero, negative values, infinity and NaN as measurements. |
-| 78 | `if unit not in ("mg/dL", "mmol/L"):` | Accept only the two documented glucose units; no implicit unit assumption is made. |
-| 79 | `raise ValueError("glucose.unit must be mg/dL or mmol/L.")` | Reject an unknown unit to prevent ambiguous interpretation of the original reading. |
-| 80 | `glucose = {"value": value, "unit": unit, "measured_at": timestamp(glucose.get("measured_at"))}` | Rebuild the reading from validated value, unchanged unit and validated measurement timestamp. |
-| 81 | `event = {"patient_id": patient, "meal_captured_at": captured, "glucose": glucose}` | Build the normalized event with patient identifier, capture time and measured glucose only; ignore extra fields. |
-| 82 | `return event, raw, subtype` | Return the normalized event, decoded image bytes and detected subtype for analysis and email attachment creation. |
-| 85 | `def mock_food_analysis(image_bytes):` | Define the mock_food_analysis function: Replaceable CV stub: bytes -> fixed gram estimates, without inspecting food. |
-| 86 | `"""Replaceable CV stub: bytes -> fixed gram estimates, without inspecting food."""` | Document the surrounding module or callable: Replaceable CV stub: bytes -> fixed gram estimates, without inspecting food. |
-| 87 | `return {` | Begin returning fixed food-analysis data; the supplied bytes are deliberately not inspected. |
-| 88 | `"source": "fixed_demo_stub",` | Label the food source as a fixed demonstration stub rather than a CV result. |
-| 89 | `"sugar_g": {"estimate": 12, "illustrative_range": [6, 20]},` | Supply an illustrative 12 g sugar estimate with a 6 to 20 g range. |
-| 90 | `"carbohydrate_g": {"estimate": 60, "illustrative_range": [40, 85]},` | Supply a separate 60 g total-carbohydrate estimate with a 40 to 85 g range; sugar and carbohydrates are not equated. |
-| 91 | `}` | Close the multiline expression above; its values and purpose are explained on the preceding lines. |
-| 94 | `def mock_glucose_analysis(event, food):` | Define the replacement boundary for a future model using event and food dictionaries. |
-| 95 | `"""Replaceable model stub: dicts -> fixed mg/dL estimate; ignores measurements."""` | Document the surrounding module or callable: Replaceable model stub: dicts -> fixed mg/dL estimate; ignores measurements. |
-| 96 | `return {"source": "fixed_demo_stub", "estimate": 140, "unit": "mg/dL",` | Return a fixed 140 mg/dL synthetic glucose estimate with its source explicitly labelled. |
-| 97 | `"illustrative_range": [100, 190], "uses_measured_glucose": False}` | Add the illustrative 100 to 190 mg/dL range and disclose that no measured glucose was used. |
-| 100 | `def mock_llm_analysis(event, food, glucose):` | Define the mock_llm_analysis function: Replaceable LLM stub: dicts -> templated text; no network or clinical reasoning. |
-| 101 | `"""Replaceable LLM stub: dicts -> templated text; no network or clinical reasoning."""` | Document the surrounding module or callable: Replaceable LLM stub: dicts -> templated text; no network or clinical reasoning. |
-| 102 | `measurement = "provided" if event["glucose"] is not None else "not provided"` | Choose wording based only on whether an original measurement exists; do not interpret its clinical value. |
-| 103 | `return (` | Begin returning a single concatenated suggestion string instead of calling an LLM API. |
-| 104 | `f"Demo report for {event['patient_id']}: a measured glucose reading was {measurement}. "` | Insert the patient identifier and presence of a measurement into the report template. |
-| 105 | `"Food and glucose estimates are fixed examples and do not describe this patient's condition. "` | Explain that the fixed numbers do not describe this patient's condition. |
-| 106 | `"Caregiver: review the attached meal photo and confirm the recorded reading and time. "` | Ask the caregiver to review the real photo and verify the reading and time. |
-| 107 | `"Follow the patient's existing care plan; ask their clinician about treatment questions. "` | Refer treatment questions to the existing care plan and clinician rather than generating treatment rules. |
-| 108 | `"Insulin timing, dose recommendations and emergency assessment are unavailable in this demo."` | Explicitly state that insulin timing, doses and emergency assessment are unavailable. |
-| 109 | `)` | Close the multiline expression above; its values and purpose are explained on the preceding lines. |
-| 112 | `def analyze(event, raw):` | Define the analyze function: Run all stubs and return JSON-safe report; measured data stays separate. |
-| 113 | `"""Run all stubs and return JSON-safe report; measured data stays separate."""` | Document the surrounding module or callable: Run all stubs and return JSON-safe report; measured data stays separate. |
-| 114 | `food = mock_food_analysis(raw)` | Pass the decoded image to the replaceable food stub and retain its dictionary result. |
-| 115 | `glucose = mock_glucose_analysis(event, food)` | Pass event and food dictionaries to the replaceable glucose stub and retain its result. |
-| 116 | `return {` | Begin assembling the complete JSON-safe report returned to HTTP clients and email recipients. |
-| 117 | `"demo": True, "warning": DISCLAIMER, "original_information": event,` | Mark the report as a demo, include the warning and retain original information under its own key. |
-| 118 | `"food": food, "estimated_current_glucose": glucose,` | Place food estimates and synthetic current glucose in separate report fields. |
-| 119 | `"uncertainty": {"intended_coverage": 0.90, "validated": False,` | Record 0.90 as the intended future coverage target while explicitly setting validated to false. |
-| 120 | `"confidence_level": None, "meaning": "Illustrative demo ranges only"},` | Set actual confidence_level to None (JSON null) and describe the ranges as illustrative, avoiding a statistical claim. |
-| 121 | `"suggestions": mock_llm_analysis(event, food, glucose),` | Run the replaceable LLM template and add its string under suggestions. |
-| 122 | `}` | Close the multiline expression above; its values and purpose are explained on the preceding lines. |
-| 125 | `def smtp_settings():` | Define the smtp_settings function: Read environment configuration; validate addresses/TLS; never log credentials. |
-| 126 | `"""Read environment configuration; validate addresses/TLS; never log credentials."""` | Document the surrounding module or callable: Read environment configuration; validate addresses/TLS; never log credentials. |
-| 127 | `settings = {key: os.environ.get("SMTP_" + key, "") for key in` | Build SMTP configuration by reading SMTP-prefixed environment variables, using an empty string for missing values. |
-| 128 | `("HOST", "PORT", "MODE", "USER", "PASSWORD", "FROM", "TO")}` | Enumerate the seven supported settings: host, port, TLS mode, user, password, sender and recipient. |
-| 129 | `settings["MODE"] = settings["MODE"] or "starttls"` | Default to STARTTLS when SMTP_MODE is absent or empty so remote SMTP is encrypted by default. |
-| 130 | `if not settings["HOST"] or not settings["FROM"] or not settings["TO"]:` | Require a host, sender and recipient before any connection is attempted. |
-| 131 | `raise ValueError("Set SMTP_HOST, SMTP_FROM and SMTP_TO before sending.")` | Raise a configuration error identifying the missing required setting group. |
-| 132 | `for key in ("FROM", "TO"):` | Validate the sender and recipient independently, each as a single plain address. |
-| 133 | `address = settings[key]` | Select the current address for the following format checks. |
-| 134 | `if "\r" in address or "\n" in address or parseaddr(address)[1] != address or address.count("@") != 1:` | Reject line breaks, display-name/list syntax and addresses without exactly one @ to avoid ambiguous headers. |
-| 135 | `raise ValueError("SMTP_FROM and SMTP_TO must each be one plain email address.")` | Report invalid address syntax without printing the actual address or any credentials. |
-| 136 | `mode = settings["MODE"]` | Keep the selected encryption mode in a local variable for readable validation. |
-| 137 | `if mode not in ("ssl", "starttls", "plain"):` | Limit SMTP mode to the three deliberately implemented transports. |
-| 138 | `raise ValueError("SMTP_MODE must be ssl, starttls or plain.")` | Reject unsupported transport modes rather than silently choosing an encryption policy. |
-| 139 | `if mode == "plain" and settings["HOST"] not in ("localhost", "127.0.0.1", "::1"):` | Allow plaintext SMTP only when the configured hostname is one of the explicit local-host forms. |
-| 140 | `raise ValueError("Unencrypted SMTP is allowed only for local testing.")` | Reject remote plaintext connections so patient reports are not deliberately sent without transport encryption. |
-| 141 | `settings["PORT"] = int(settings["PORT"] or (465 if mode == "ssl" else 587))` | Convert the configured port to an integer; default to 465 for implicit TLS and 587 otherwise. |
-| 142 | `if not 1 <= settings["PORT"] <= 65535:` | Require a valid TCP port in the inclusive range 1 to 65535. |
-| 143 | `raise ValueError("SMTP_PORT must be between 1 and 65535.")` | Reject out-of-range ports before opening a socket. |
-| 144 | `if bool(settings["USER"]) != bool(settings["PASSWORD"]):` | Compare whether username and password are present; a mismatch means authentication is only partly configured. |
-| 145 | `raise ValueError("Set both SMTP_USER and SMTP_PASSWORD, or neither.")` | Reject partial credentials; both absent is allowed for an appropriately configured relay. |
-| 146 | `return settings` | Return the validated settings dictionary to the email sender. |
-| 149 | `def send_email(report, raw, subtype):` | Define the send_email function: Send a report and image via SMTP; return only after server acceptance. |
-| 150 | `"""Send a report and image via SMTP; return only after server acceptance.` | Document the surrounding module or callable: Send a report and image via SMTP; return only after server acceptance. |
-| 152 | `report: dict, raw: PNG/JPEG bytes, subtype: png/jpeg. Sends private data to` | Document the surrounding module or callable: report: dict, raw: PNG/JPEG bytes, subtype: png/jpeg. Sends private data to |
-| 153 | `configured SMTP_TO. SMTP acceptance does not prove delivery to an inbox.` | Document the surrounding module or callable: configured SMTP_TO. SMTP acceptance does not prove delivery to an inbox. |
-| 154 | `"""` | Document the surrounding module or callable:  |
-| 155 | `config = smtp_settings()` | Load and validate environment configuration at sending time, so preview does not require SMTP settings. |
-| 156 | `message = EmailMessage()` | Create an EmailMessage object to handle MIME structure and encoding correctly. |
-| 157 | `message["Subject"] = "[SIMULATED DEMO] Meal and glucose caregiver report"` | Set a fixed subject visibly identifying every email as a simulated demonstration. |
-| 158 | `message["From"], message["To"] = config["FROM"], config["TO"]` | Use only server-configured sender and recipient addresses, never an address from the event payload. |
-| 159 | `message.set_content(DISCLAIMER + "\n\n" + json.dumps(report, indent=2, ensure_ascii=False))` | Build the plain-text body from the warning and indented Unicode-preserving report JSON. |
-| 160 | `message.add_attachment(raw, maintype="image", subtype=subtype, filename="meal." + subtype)` | Attach the original image bytes with the detected image MIME subtype and a safe server-generated filename. |
-| 161 | `client = smtplib.SMTP_SSL if config["MODE"] == "ssl" else smtplib.SMTP` | Choose the implicit-TLS SMTP class for ssl mode and ordinary SMTP for STARTTLS or local plaintext. |
-| 162 | `options = {"timeout": 20}` | Set a 20-second SMTP socket timeout to limit individual network waits. |
-| 163 | `if config["MODE"] == "ssl":` | Add TLS options only when creating an implicit-TLS connection. |
-| 164 | `options["context"] = ssl.create_default_context()` | Use the default certificate-verifying SSL context for that connection. |
-| 165 | `with client(config["HOST"], config["PORT"], **options) as smtp:` | Open the SMTP connection with host, port and options; the context manager closes it after use. |
-| 166 | `if config["MODE"] == "starttls":` | Upgrade the connection when STARTTLS is selected. |
-| 167 | `smtp.starttls(context=ssl.create_default_context())` | Run STARTTLS with a certificate-verifying context; failure propagates instead of falling back to plaintext. |
-| 168 | `if config["USER"]:` | Authenticate only when a username was configured; settings validation guarantees the password is also present. |
-| 169 | `smtp.login(config["USER"], config["PASSWORD"])` | Log in with the environment-supplied credentials without printing them. |
-| 170 | `smtp.send_message(message)` | Transmit the MIME message through SMTP; failures propagate to the HTTP failure handler. |
-| 173 | `class Handler(BaseHTTPRequestHandler):` | Define the Handler class: Authenticated local JSON API. Processes one request at a time; stores no events. |
-| 174 | `"""Authenticated local JSON API. Processes one request at a time; stores no events."""` | Document the surrounding module or callable: Authenticated local JSON API. Processes one request at a time; stores no events. |
-| 176 | `def log_message(self, format, *args):` | Define the log_message function: Suppress access logs so request details do not enter console logs. |
-| 177 | `"""Suppress access logs so request details do not enter console logs."""` | Document the surrounding module or callable: Suppress access logs so request details do not enter console logs. |
-| 178 | `return` | Return immediately to suppress the inherited access logger and keep request details out of console logs. |
-| 180 | `def reply(self, status, payload):` | Define the reply function: Serialize dict to UTF-8 JSON and write a non-cacheable HTTP response. |
-| 181 | `"""Serialize dict to UTF-8 JSON and write a non-cacheable HTTP response."""` | Document the surrounding module or callable: Serialize dict to UTF-8 JSON and write a non-cacheable HTTP response. |
-| 182 | `body = json.dumps(payload, ensure_ascii=False).encode("utf-8")` | Serialize the response dictionary as Unicode-preserving JSON and encode it to UTF-8 bytes. |
-| 183 | `self.send_response(status)` | Write the chosen HTTP status and standard response metadata. |
-| 184 | `self.send_header("Content-Type", "application/json; charset=utf-8")` | Declare that the body is JSON encoded as UTF-8. |
-| 185 | `self.send_header("Content-Length", str(len(body)))` | Declare the exact byte length so clients know how much response data to read. |
-| 186 | `self.send_header("Cache-Control", "no-store")` | Tell clients and intermediaries not to cache the response, which may contain health information. |
-| 187 | `self.end_headers()` | Terminate the HTTP header section before writing response bytes. |
-| 188 | `self.wfile.write(body)` | Write the serialized response body to the connected client. |
-| 190 | `def do_GET(self):` | Define the do_GET function: Expose only a health check, without patient data or SMTP credentials. |
-| 191 | `"""Expose only a health check, without patient data or SMTP credentials."""` | Document the surrounding module or callable: Expose only a health check, without patient data or SMTP credentials. |
-| 192 | `self.reply(200 if self.path == "/health" else 404,` | Choose status 200 only for /health and 404 for any other GET path. |
-| 193 | `{"status": "ok", "demo": True} if self.path == "/health" else {"error": "Not found"})` | Return minimal demo health status or a not-found error; neither payload includes patient or SMTP data. |
-| 195 | `def do_POST(self):` | Define the do_POST function: Validate authenticated JSON; preview or send; surface SMTP failure as 502. |
-| 196 | `"""Validate authenticated JSON; preview or send; surface SMTP failure as 502."""` | Document the surrounding module or callable: Validate authenticated JSON; preview or send; surface SMTP failure as 502. |
-| 197 | `self.connection.settimeout(30)` | Set a 30-second timeout for subsequent request-body I/O; this does not harden the server for public deployment. |
-| 198 | `if self.path not in ("/preview", "/events"):` | Restrict POST requests to the preview and event-submission paths. |
-| 199 | `self.reply(404, {"error": "Not found"})` | Return HTTP 404 for unknown POST paths. |
-| 200 | `return` | Stop handling the unknown route before parsing data or attempting email. |
-| 201 | `supplied = self.headers.get("Authorization", "").encode("utf-8")` | Read the Authorization header, default to empty, and encode it for safe byte comparison. |
-| 202 | `expected = ("Bearer " + self.server.api_token).encode("utf-8")` | Construct the required Bearer header from the server's configured API token. |
-| 203 | `if not hmac.compare_digest(supplied, expected):` | Use constant-time comparison rather than ordinary equality to check the supplied token bytes. |
-| 204 | `self.reply(401, {"error": "A valid Bearer API_TOKEN is required."})` | Return HTTP 401 when authentication fails without revealing the expected token. |
-| 205 | `return` | Stop unauthorized processing before reading the event or sending email. |
-| 206 | `if self.headers.get_content_type() != "application/json":` | Check the media type while allowing a charset parameter on application/json. |
-| 207 | `self.reply(415, {"error": "Use application/json."})` | Return HTTP 415 for a non-JSON content type. |
-| 208 | `return` | Stop processing an unsupported body type. |
-| 209 | `try:` | Begin protected length parsing, body decoding and event validation. |
-| 210 | `if self.headers.get("Transfer-Encoding"):` | Detect Transfer-Encoding, which this minimal server does not implement. |
-| 211 | `raise ValueError("Transfer-Encoding is unsupported; send Content-Length.")` | Reject such requests instead of attempting unsupported chunked-body decoding. |
-| 212 | `length = int(self.headers.get("Content-Length", "0"))` | Parse Content-Length as an integer, treating an absent value as zero. |
-| 213 | `if not 0 < length <= MAX_BODY:` | Require a positive declared length no greater than the configured body limit. |
-| 214 | `self.reply(413, {"error": "JSON body must be between 1 byte and 7 MiB."})` | Return HTTP 413 for invalid body lengths or an oversized declared body. |
-| 215 | `return` | Stop before allocating or reading the rejected request body. |
-| 216 | `data = json.loads(self.rfile.read(length))` | Read exactly the declared number of bytes and parse them as JSON. |
-| 217 | `event, raw, subtype = validate_event(data)` | Validate the parsed object and unpack the normalized event, raw bytes and MIME subtype. |
-| 218 | `except (ValueError, OverflowError, RecursionError):` | Catch malformed JSON/schema values, integer overflow and excessive nesting as bad input. |
-| 219 | `self.reply(400, {"error": "Invalid event: check the documented schema, image, units and timestamps."})` | Return HTTP 400 with a generic schema hint instead of reflecting sensitive input or tracebacks. |
-| 220 | `return` | Stop the failed validation path before invoking the analysis stubs. |
-| 221 | `except (OSError, TimeoutError):` | Catch network read failures and timeouts separately from invalid event contents. |
-| 222 | `self.reply(408, {"error": "Request body could not be read in time."})` | Return HTTP 408 to identify an unreadable or timed-out body. |
-| 223 | `return` | Stop processing after the body-read failure response. |
-| 224 | `report = analyze(event, raw)` | Run the three mock-analysis stages only after authentication and validation succeed. |
-| 225 | `if self.path == "/preview":` | Check whether the caller requested a preview rather than email delivery. |
-| 226 | `self.reply(200, {"email_status": "not_sent_preview", "report": report})` | Return the report with explicit not_sent_preview status and HTTP 200. |
-| 227 | `return` | Stop the preview path so it can never fall through into SMTP sending. |
-| 228 | `try:` | Begin protected email sending so SMTP problems produce an explicit API result. |
-| 229 | `send_email(report, raw, subtype)` | Pass the report and original image to the real SMTP sender. |
-| 230 | `except (ValueError, OSError, smtplib.SMTPException):` | Catch configuration errors, socket failures and SMTP protocol/authentication/delivery exceptions. |
-| 231 | `self.reply(502, {"email_status": "failed_or_unconfirmed", "report": report,` | Return HTTP 502, mark sending failed or unconfirmed, and preserve the report for the caller. |
-| 232 | `"error": "SMTP failed. Check local configuration and provider status before retrying."})` | Provide a configuration/provider hint without exposing the raw SMTP exception or credentials. |
-| 233 | `return` | Stop the failed send path so it cannot claim SMTP acceptance. |
-| 234 | `self.reply(200, {"email_status": "accepted_by_smtp", "report": report})` | Return HTTP 200 with accepted_by_smtp only after sending completes without a caught exception. |
-| 237 | `def main():` | Define the main function: Start on loopback only; require a token. Stops on Ctrl+C; writes no patient files. |
-| 238 | `"""Start on loopback only; require a token. Stops on Ctrl+C; writes no patient files."""` | Document the surrounding module or callable: Start on loopback only; require a token. Stops on Ctrl+C; writes no patient files. |
-| 239 | `token = os.environ.get("API_TOKEN", "")` | Read the API token from the environment; an absent token becomes an empty string. |
-| 240 | `if len(token) < 16:` | Require at least 16 characters before starting the server; the setup guide recommends a randomly generated token. |
-| 241 | `raise SystemExit("Set API_TOKEN to a random secret of at least 16 characters.")` | Exit with a setup message if the token is missing or too short. |
-| 242 | `server = HTTPServer(("127.0.0.1", int(os.environ.get("PORT", "8000"))), Handler)` | Bind the HTTPServer to loopback on PORT (default 8000) and register the request handler. |
-| 243 | `server.api_token = token` | Attach the configured token to the server object for authenticated POST handling. |
-| 244 | `print(f"Demo API listening on http://127.0.0.1:{server.server_port}; Ctrl+C to stop.")` | Print the actual listening address after binding succeeds, without displaying the token. |
-| 245 | `try:` | Enter a protected serving loop so interruption still triggers socket cleanup. |
-| 246 | `server.serve_forever()` | Process requests sequentially until the process is interrupted. |
-| 247 | `except KeyboardInterrupt:` | Catch Ctrl+C as a normal interactive shutdown request. |
-| 248 | `pass` | Take no additional action for that interruption; cleanup happens in finally. |
-| 249 | `finally:` | Ensure the following cleanup runs whether serving ends normally or by exception. |
-| 250 | `server.server_close()` | Close the listening socket rather than leaving the server resource open. |
-| 253 | `if __name__ == "__main__":` | Start the application only when this file is executed directly, allowing tests to import it without starting a server. |
-| 254 | `main()` | Invoke the startup function under that direct-execution guard. |
+| 17 | `MAX_IMAGE = 5 * 1024 * 1024` | Set the decoded image ceiling to 5 MiB (5 times 1024 squared bytes) to bound attachment memory use. |
+| 18 | `MAX_BODY = 7 * 1024 * 1024` | Set the JSON request ceiling to 7 MiB, allowing base64 expansion while bounding input memory. |
+| 19 | `DISCLAIMER = (` | Begin the shared warning string used in API reports and email bodies. |
+| 20 | `"DEMO ONLY: food and current glucose estimates and suggestions are simulated. "` | State that food, current glucose and suggestions are simulated so recipients know their source. |
+| 21 | `"Ranges are illustrative, not validated 90% confidence intervals. "` | Explain that the ranges have no validated 90% confidence meaning. |
+| 22 | `"Do not use these outputs to decide insulin timing, dosage, or medical urgency. "` | Exclude insulin timing, dose and urgency decisions from the permitted use of the output. |
+| 23 | `"Use actual glucose measurements and the patient's clinician-provided care plan. "` | Direct users to actual measurements and the existing clinician-provided plan. |
+| 24 | `"This prototype does not detect emergencies."` | Explicitly disclose that the prototype does not detect emergencies. |
+| 25 | `)` | Close the multiline expression above; its values and purpose are explained on the preceding lines. |
+| 28 | `def timestamp(value):` | Define the timestamp function: Validate an ISO 8601 string with timezone; return the original string. |
+| 29 | `"""Validate an ISO 8601 string with timezone; return the original string."""` | Document the surrounding module or callable: Validate an ISO 8601 string with timezone; return the original string. |
+| 30 | `if not isinstance(value, str) or len(value) > 64:` | Require a string of at most 64 characters before attempting date parsing. |
+| 31 | `raise ValueError("A timestamp with timezone is required.")` | Reject a missing, incorrectly typed or excessively long timestamp with a validation error. |
+| 32 | `try:` | Begin protected parsing so invalid date syntax can become a controlled validation failure. |
+| 33 | `parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))` | Replace the UTC suffix Z with +00:00 for Python 3.10 compatibility, then parse the date and time. |
+| 34 | `except ValueError:` | Handle a date/time parsing failure locally. |
+| 35 | `raise ValueError("Use an ISO 8601 timestamp with timezone.") from None` | Raise a clearer validation message without attaching the low-level parsing traceback as its cause. |
+| 36 | `if parsed.utcoffset() is None:` | Check whether the parsed date has a timezone offset; an absent offset makes the time ambiguous. |
+| 37 | `raise ValueError("Timestamps must include a timezone.")` | Reject dates without a timezone so capture and measurement times can be compared later. |
+| 38 | `return value` | Return the original validated string to preserve the supplied timestamp representation. |
+| 41 | `def validate_event(data):` | Define the validate_event function: Return (normalized event dict, image bytes, MIME subtype); no I/O. |
+| 42 | `"""Return (normalized event dict, image bytes, MIME subtype); no I/O.` | Document the surrounding module or callable: Return (normalized event dict, image bytes, MIME subtype); no I/O. |
+| 44 | `Input is a JSON object with patient_id, meal_captured_at, image and optional` | Document the surrounding module or callable: Input is a JSON object with patient_id, meal_captured_at, image and optional |
+| 45 | `glucose. Glucose values are positive mg/dL or mmol/L measurements, not estimates.` | Document the surrounding module or callable: glucose. Glucose values are positive mg/dL or mmol/L measurements, not estimates. |
+| 46 | `Only PNG/JPEG signatures are checked; this is not full image decoding.` | Document the surrounding module or callable: Only PNG/JPEG signatures are checked; this is not full image decoding. |
+| 47 | `"""` | Document the surrounding module or callable:  |
+| 48 | `if not isinstance(data, dict):` | Require the top-level JSON value to be an object, rather than a list or primitive. |
+| 49 | `raise ValueError("The request must be a JSON object.")` | Stop validation with an object-schema error when that requirement fails. |
+| 50 | `patient = data.get("patient_id")` | Read patient_id using get so an absent field becomes None and follows the same validation path. |
+| 51 | `if not isinstance(patient, str) or not patient.strip() or len(patient) > 100:` | Require a string identifier containing non-whitespace text and limit it to 100 characters. |
+| 52 | `raise ValueError("patient_id must be a nonempty string of at most 100 characters.")` | Reject an invalid identifier before it reaches the report or email. |
+| 53 | `captured = timestamp(data.get("meal_captured_at"))` | Validate the meal capture timestamp with the shared timezone-aware parser. |
+| 54 | `picture = data.get("image")` | Read the image object without assuming the client supplied it. |
+| 55 | `if not isinstance(picture, dict):` | Require an object containing the image fields. |
+| 56 | `raise ValueError("image must contain content_base64.")` | Reject a missing or incorrectly typed image object. |
+| 57 | `encoded = picture.get("content_base64")` | Extract the base64 image text; image URLs are not fetched. |
+| 58 | `if not isinstance(encoded, str) or len(encoded) > 4 * ((MAX_IMAGE + 2) // 3):` | Require a string and cap its encoded length at four characters per three allowed image bytes, rounded up. |
+| 59 | `raise ValueError("Image must be base64 and no larger than 5 MiB decoded.")` | Reject malformed types or excessive encoded lengths before decoding them. |
+| 60 | `try:` | Begin strict base64 conversion with a controlled error path. |
+| 61 | `raw = base64.b64decode(encoded, validate=True)` | Decode to bytes and reject characters outside the base64 alphabet through validate=True. |
+| 62 | `except (ValueError, binascii.Error):` | Catch both ordinary value errors and binary-decoding errors raised by base64 conversion. |
+| 63 | `raise ValueError("Invalid base64 image.") from None` | Replace those decoder errors with a safe image-validation message. |
+| 64 | `if not raw or len(raw) > MAX_IMAGE:` | Check the actual decoded length, rejecting both empty images and anything over 5 MiB. |
+| 65 | `raise ValueError("Image must be nonempty and no larger than 5 MiB.")` | Raise a validation error if the decoded payload violates the size limit. |
+| 66 | `if raw.startswith(b"\x89PNG\r\n\x1a\n"):` | Check the eight-byte PNG signature; this identifies the declared format without full decoding. |
+| 67 | `subtype = "png"` | Select the PNG MIME subtype and attachment extension when the signature matches. |
+| 68 | `elif raw.startswith(b"\xff\xd8\xff"):` | Otherwise check the leading three JPEG marker bytes. |
+| 69 | `subtype = "jpeg"` | Select the JPEG MIME subtype and attachment extension for a matching signature. |
+| 70 | `else:` | Use the alternate branch when neither supported image signature matches. |
+| 71 | `raise ValueError("Only PNG or JPEG image signatures are accepted.")` | Reject unsupported formats rather than attaching arbitrary binary data as an image. |
+| 72 | `glucose = data.get("glucose")` | Read optional glucose; an omitted field and explicit null both produce None. |
+| 73 | `if glucose is not None:` | Validate glucose fields only when a reading has actually been supplied. |
+| 74 | `if not isinstance(glucose, dict):` | Require a supplied glucose reading to be an object. |
+| 75 | `raise ValueError("glucose must be an object or null.")` | Reject malformed glucose containers without inventing a measurement. |
+| 76 | `value, unit = glucose.get("value"), glucose.get("unit")` | Extract the numeric measurement and its declared unit for independent validation. |
+| 77 | `if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:` | Allow only exact int/float types, excluding booleans, and require a finite positive value. |
+| 78 | `raise ValueError("glucose.value must be a finite positive number.")` | Reject text, booleans, zero, negative values, infinity and NaN as measurements. |
+| 79 | `if unit not in ("mg/dL", "mmol/L"):` | Accept only the two documented glucose units; no implicit unit assumption is made. |
+| 80 | `raise ValueError("glucose.unit must be mg/dL or mmol/L.")` | Reject an unknown unit to prevent ambiguous interpretation of the original reading. |
+| 81 | `glucose = {"value": value, "unit": unit, "measured_at": timestamp(glucose.get("measured_at"))}` | Rebuild the reading from validated value, unchanged unit and validated measurement timestamp. |
+| 82 | `event = {"patient_id": patient, "meal_captured_at": captured, "glucose": glucose}` | Build the normalized event with patient identifier, capture time and measured glucose only; ignore extra fields. |
+| 83 | `return event, raw, subtype` | Return the normalized event, decoded image bytes and detected subtype for analysis and email attachment creation. |
+| 86 | `def mock_food_analysis(image_bytes):` | Define the mock_food_analysis function: Replaceable CV stub: bytes -> fixed gram estimates, without inspecting food. |
+| 87 | `"""Replaceable CV stub: bytes -> fixed gram estimates, without inspecting food."""` | Document the surrounding module or callable: Replaceable CV stub: bytes -> fixed gram estimates, without inspecting food. |
+| 88 | `return {` | Begin returning fixed food-analysis data; the supplied bytes are deliberately not inspected. |
+| 89 | `"source": "fixed_demo_stub",` | Label the food source as a fixed demonstration stub rather than a CV result. |
+| 90 | `"sugar_g": {"estimate": 12, "illustrative_range": [6, 20]},` | Supply an illustrative 12 g sugar estimate with a 6 to 20 g range. |
+| 91 | `"carbohydrate_g": {"estimate": 60, "illustrative_range": [40, 85]},` | Supply a separate 60 g total-carbohydrate estimate with a 40 to 85 g range; sugar and carbohydrates are not equated. |
+| 92 | `}` | Close the multiline expression above; its values and purpose are explained on the preceding lines. |
+| 95 | `def mock_glucose_analysis(event, food):` | Define the replacement boundary for a future model using event and food dictionaries. |
+| 96 | `"""Replaceable model stub: dicts -> fixed mg/dL estimate; ignores measurements."""` | Document the surrounding module or callable: Replaceable model stub: dicts -> fixed mg/dL estimate; ignores measurements. |
+| 97 | `return {"source": "fixed_demo_stub", "estimate": 140, "unit": "mg/dL",` | Return a fixed 140 mg/dL synthetic glucose estimate with its source explicitly labelled. |
+| 98 | `"illustrative_range": [100, 190], "uses_measured_glucose": False}` | Add the illustrative 100 to 190 mg/dL range and disclose that no measured glucose was used. |
+| 101 | `def mock_llm_analysis(event, food, glucose):` | Define the mock_llm_analysis function: Replaceable LLM stub: dicts -> templated text; no network or clinical reasoning. |
+| 102 | `"""Replaceable LLM stub: dicts -> templated text; no network or clinical reasoning."""` | Document the surrounding module or callable: Replaceable LLM stub: dicts -> templated text; no network or clinical reasoning. |
+| 103 | `measurement = "provided" if event["glucose"] is not None else "not provided"` | Choose wording based only on whether an original measurement exists; do not interpret its clinical value. |
+| 104 | `return (` | Begin returning a single concatenated suggestion string instead of calling an LLM API. |
+| 105 | `f"Demo report for {event['patient_id']}: a measured glucose reading was {measurement}. "` | Insert the patient identifier and presence of a measurement into the report template. |
+| 106 | `"Food and glucose estimates are fixed examples and do not describe this patient's condition. "` | Explain that the fixed numbers do not describe this patient's condition. |
+| 107 | `"Caregiver: review the attached meal photo and confirm the recorded reading and time. "` | Ask the caregiver to review the real photo and verify the reading and time. |
+| 108 | `"Follow the patient's existing care plan; ask their clinician about treatment questions. "` | Refer treatment questions to the existing care plan and clinician rather than generating treatment rules. |
+| 109 | `"Insulin timing, dose recommendations and emergency assessment are unavailable in this demo."` | Explicitly state that insulin timing, doses and emergency assessment are unavailable. |
+| 110 | `)` | Close the multiline expression above; its values and purpose are explained on the preceding lines. |
+| 113 | `def analyze(event, raw):` | Define the analyze function: Run all stubs and return JSON-safe report; measured data stays separate. |
+| 114 | `"""Run all stubs and return JSON-safe report; measured data stays separate."""` | Document the surrounding module or callable: Run all stubs and return JSON-safe report; measured data stays separate. |
+| 115 | `food = mock_food_analysis(raw)` | Pass the decoded image to the replaceable food stub and retain its dictionary result. |
+| 116 | `glucose = mock_glucose_analysis(event, food)` | Pass event and food dictionaries to the replaceable glucose stub and retain its result. |
+| 117 | `return {` | Begin assembling the complete JSON-safe report returned to HTTP clients and email recipients. |
+| 118 | `"demo": True, "warning": DISCLAIMER, "original_information": event,` | Mark the report as a demo, include the warning and retain original information under its own key. |
+| 119 | `"food": food, "estimated_current_glucose": glucose,` | Place food estimates and synthetic current glucose in separate report fields. |
+| 120 | `"uncertainty": {"intended_coverage": 0.90, "validated": False,` | Record 0.90 as the intended future coverage target while explicitly setting validated to false. |
+| 121 | `"confidence_level": None, "meaning": "Illustrative demo ranges only"},` | Set actual confidence_level to None (JSON null) and describe the ranges as illustrative, avoiding a statistical claim. |
+| 122 | `"suggestions": mock_llm_analysis(event, food, glucose),` | Run the replaceable LLM template and add its string under suggestions. |
+| 123 | `}` | Close the multiline expression above; its values and purpose are explained on the preceding lines. |
+| 126 | `def smtp_settings():` | Define the smtp_settings function: Read environment configuration; validate addresses/TLS; never log credentials. |
+| 127 | `"""Read environment configuration; validate addresses/TLS; never log credentials."""` | Document the surrounding module or callable: Read environment configuration; validate addresses/TLS; never log credentials. |
+| 128 | `settings = {key: os.environ.get("SMTP_" + key, "") for key in` | Build SMTP configuration by reading SMTP-prefixed environment variables, using an empty string for missing values. |
+| 129 | `("HOST", "PORT", "MODE", "USER", "PASSWORD", "FROM", "TO")}` | Enumerate the seven supported settings: host, port, TLS mode, user, password, sender and recipient. |
+| 130 | `settings["MODE"] = settings["MODE"] or "starttls"` | Default to STARTTLS when SMTP_MODE is absent or empty so remote SMTP is encrypted by default. |
+| 131 | `if not settings["HOST"] or not settings["FROM"] or not settings["TO"]:` | Require a host, sender and recipient before any connection is attempted. |
+| 132 | `raise ValueError("Set SMTP_HOST, SMTP_FROM and SMTP_TO before sending.")` | Raise a configuration error identifying the missing required setting group. |
+| 133 | `for key in ("FROM", "TO"):` | Validate the sender and recipient independently, each as a single plain address. |
+| 134 | `address = settings[key]` | Select the current address for the following format checks. |
+| 135 | `if "\r" in address or "\n" in address or parseaddr(address)[1] != address or address.count("@") != 1:` | Reject line breaks, display-name/list syntax and addresses without exactly one @ to avoid ambiguous headers. |
+| 136 | `raise ValueError("SMTP_FROM and SMTP_TO must each be one plain email address.")` | Report invalid address syntax without printing the actual address or any credentials. |
+| 137 | `mode = settings["MODE"]` | Keep the selected encryption mode in a local variable for readable validation. |
+| 138 | `if mode not in ("ssl", "starttls", "plain"):` | Limit SMTP mode to the three deliberately implemented transports. |
+| 139 | `raise ValueError("SMTP_MODE must be ssl, starttls or plain.")` | Reject unsupported transport modes rather than silently choosing an encryption policy. |
+| 140 | `if mode == "plain" and settings["HOST"] not in ("localhost", "127.0.0.1", "::1"):` | Allow plaintext SMTP only when the configured hostname is one of the explicit local-host forms. |
+| 141 | `raise ValueError("Unencrypted SMTP is allowed only for local testing.")` | Reject remote plaintext connections so patient reports are not deliberately sent without transport encryption. |
+| 142 | `settings["PORT"] = int(settings["PORT"] or (465 if mode == "ssl" else 587))` | Convert the configured port to an integer; default to 465 for implicit TLS and 587 otherwise. |
+| 143 | `if not 1 <= settings["PORT"] <= 65535:` | Require a valid TCP port in the inclusive range 1 to 65535. |
+| 144 | `raise ValueError("SMTP_PORT must be between 1 and 65535.")` | Reject out-of-range ports before opening a socket. |
+| 145 | `if bool(settings["USER"]) != bool(settings["PASSWORD"]):` | Compare whether username and password are present; a mismatch means authentication is only partly configured. |
+| 146 | `raise ValueError("Set both SMTP_USER and SMTP_PASSWORD, or neither.")` | Reject partial credentials; both absent is allowed for an appropriately configured relay. |
+| 147 | `return settings` | Return the validated settings dictionary to the email sender. |
+| 150 | `def send_email(report, raw, subtype):` | Define the send_email function: Send a report and image via SMTP; return only after server acceptance. |
+| 151 | `"""Send a report and image via SMTP; return only after server acceptance.` | Document the surrounding module or callable: Send a report and image via SMTP; return only after server acceptance. |
+| 153 | `report: dict, raw: PNG/JPEG bytes, subtype: png/jpeg. Sends private data to` | Document the surrounding module or callable: report: dict, raw: PNG/JPEG bytes, subtype: png/jpeg. Sends private data to |
+| 154 | `configured SMTP_TO. SMTP acceptance does not prove delivery to an inbox.` | Document the surrounding module or callable: configured SMTP_TO. SMTP acceptance does not prove delivery to an inbox. |
+| 155 | `"""` | Document the surrounding module or callable:  |
+| 156 | `config = smtp_settings()` | Load and validate environment configuration at sending time, so preview does not require SMTP settings. |
+| 157 | `message = EmailMessage()` | Create an EmailMessage object to handle MIME structure and encoding correctly. |
+| 158 | `message["Subject"] = "[SIMULATED DEMO] Meal and glucose caregiver report"` | Set a fixed subject visibly identifying every email as a simulated demonstration. |
+| 159 | `message["From"], message["To"] = config["FROM"], config["TO"]` | Use only server-configured sender and recipient addresses, never an address from the event payload. |
+| 161 | `message.add_attachment(raw, maintype="image", subtype=subtype, filename="meal." + subtype)` | Attach the original image bytes with the detected image MIME subtype and a safe server-generated filename. |
+| 162 | `client = smtplib.SMTP_SSL if config["MODE"] == "ssl" else smtplib.SMTP` | Choose the implicit-TLS SMTP class for ssl mode and ordinary SMTP for STARTTLS or local plaintext. |
+| 163 | `options = {"timeout": 20}` | Set a 20-second SMTP socket timeout to limit individual network waits. |
+| 164 | `if config["MODE"] == "ssl":` | Add TLS options only when creating an implicit-TLS connection. |
+| 165 | `options["context"] = ssl.create_default_context()` | Use the default certificate-verifying SSL context for that connection. |
+| 166 | `with client(config["HOST"], config["PORT"], **options) as smtp:` | Open the SMTP connection with host, port and options; the context manager closes it after use. |
+| 167 | `if config["MODE"] == "starttls":` | Upgrade the connection when STARTTLS is selected. |
+| 168 | `smtp.starttls(context=ssl.create_default_context())` | Run STARTTLS with a certificate-verifying context; failure propagates instead of falling back to plaintext. |
+| 169 | `if config["USER"]:` | Authenticate only when a username was configured; settings validation guarantees the password is also present. |
+| 170 | `smtp.login(config["USER"], config["PASSWORD"])` | Log in with the environment-supplied credentials without printing them. |
+| 171 | `smtp.send_message(message)` | Transmit the MIME message through SMTP; failures propagate to the HTTP failure handler. |
+| 174 | `class Handler(BaseHTTPRequestHandler):` | Define the Handler class: Authenticated local JSON API. Processes one request at a time; stores no events. |
+| 175 | `"""Authenticated local JSON API. Processes one request at a time; stores no events."""` | Document the surrounding module or callable: Authenticated local JSON API. Processes one request at a time; stores no events. |
+| 177 | `def log_message(self, format, *args):` | Define the log_message function: Suppress access logs so request details do not enter console logs. |
+| 178 | `"""Suppress access logs so request details do not enter console logs."""` | Document the surrounding module or callable: Suppress access logs so request details do not enter console logs. |
+| 179 | `return` | Return immediately to suppress the inherited access logger and keep request details out of console logs. |
+| 181 | `def reply(self, status, payload):` | Define the reply function: Serialize dict to UTF-8 JSON and write a non-cacheable HTTP response. |
+| 182 | `"""Serialize dict to UTF-8 JSON and write a non-cacheable HTTP response."""` | Document the surrounding module or callable: Serialize dict to UTF-8 JSON and write a non-cacheable HTTP response. |
+| 183 | `body = json.dumps(payload, ensure_ascii=False).encode("utf-8")` | Serialize the response dictionary as Unicode-preserving JSON and encode it to UTF-8 bytes. |
+| 184 | `self.send_response(status)` | Write the chosen HTTP status and standard response metadata. |
+| 185 | `self.send_header("Content-Type", "application/json; charset=utf-8")` | Declare that the body is JSON encoded as UTF-8. |
+| 186 | `self.send_header("Content-Length", str(len(body)))` | Declare the exact byte length so clients know how much response data to read. |
+| 187 | `self.send_header("Cache-Control", "no-store")` | Tell clients and intermediaries not to cache the response, which may contain health information. |
+| 188 | `self.end_headers()` | Terminate the HTTP header section before writing response bytes. |
+| 189 | `self.wfile.write(body)` | Write the serialized response body to the connected client. |
+| 191 | `def do_GET(self):` | Define the do_GET function: Expose only a health check, without patient data or SMTP credentials. |
+| 192 | `"""Expose only a health check, without patient data or SMTP credentials."""` | Document the surrounding module or callable: Expose only a health check, without patient data or SMTP credentials. |
+| 193 | `self.reply(200 if self.path == "/health" else 404,` | Choose status 200 only for /health and 404 for any other GET path. |
+| 194 | `{"status": "ok", "demo": True} if self.path == "/health" else {"error": "Not found"})` | Return minimal demo health status or a not-found error; neither payload includes patient or SMTP data. |
+| 196 | `def do_POST(self):` | Define the do_POST function: Validate authenticated JSON; preview or send; surface SMTP failure as 502. |
+| 197 | `"""Validate authenticated JSON; preview or send; surface SMTP failure as 502."""` | Document the surrounding module or callable: Validate authenticated JSON; preview or send; surface SMTP failure as 502. |
+| 198 | `self.connection.settimeout(30)` | Set a 30-second timeout for subsequent request-body I/O; this does not harden the server for public deployment. |
+| 199 | `if self.path not in ("/preview", "/events"):` | Restrict POST requests to the preview and event-submission paths. |
+| 200 | `self.reply(404, {"error": "Not found"})` | Return HTTP 404 for unknown POST paths. |
+| 201 | `return` | Stop handling the unknown route before parsing data or attempting email. |
+| 202 | `supplied = self.headers.get("Authorization", "").encode("utf-8")` | Read the Authorization header, default to empty, and encode it for safe byte comparison. |
+| 203 | `expected = ("Bearer " + self.server.api_token).encode("utf-8")` | Construct the required Bearer header from the server's configured API token. |
+| 204 | `if not hmac.compare_digest(supplied, expected):` | Use constant-time comparison rather than ordinary equality to check the supplied token bytes. |
+| 205 | `self.reply(401, {"error": "A valid Bearer API_TOKEN is required."})` | Return HTTP 401 when authentication fails without revealing the expected token. |
+| 206 | `return` | Stop unauthorized processing before reading the event or sending email. |
+| 207 | `if self.headers.get_content_type() != "application/json":` | Check the media type while allowing a charset parameter on application/json. |
+| 208 | `self.reply(415, {"error": "Use application/json."})` | Return HTTP 415 for a non-JSON content type. |
+| 209 | `return` | Stop processing an unsupported body type. |
+| 210 | `try:` | Begin protected length parsing, body decoding and event validation. |
+| 211 | `if self.headers.get("Transfer-Encoding"):` | Detect Transfer-Encoding, which this minimal server does not implement. |
+| 212 | `raise ValueError("Transfer-Encoding is unsupported; send Content-Length.")` | Reject such requests instead of attempting unsupported chunked-body decoding. |
+| 213 | `length = int(self.headers.get("Content-Length", "0"))` | Parse Content-Length as an integer, treating an absent value as zero. |
+| 214 | `if not 0 < length <= MAX_BODY:` | Require a positive declared length no greater than the configured body limit. |
+| 215 | `self.reply(413, {"error": "JSON body must be between 1 byte and 7 MiB."})` | Return HTTP 413 for invalid body lengths or an oversized declared body. |
+| 216 | `return` | Stop before allocating or reading the rejected request body. |
+| 217 | `data = json.loads(self.rfile.read(length))` | Read exactly the declared number of bytes and parse them as JSON. |
+| 218 | `event, raw, subtype = validate_event(data)` | Validate the parsed object and unpack the normalized event, raw bytes and MIME subtype. |
+| 219 | `except (ValueError, OverflowError, RecursionError):` | Catch malformed JSON/schema values, integer overflow and excessive nesting as bad input. |
+| 220 | `self.reply(400, {"error": "Invalid event: check the documented schema, image, units and timestamps."})` | Return HTTP 400 with a generic schema hint instead of reflecting sensitive input or tracebacks. |
+| 221 | `return` | Stop the failed validation path before invoking the analysis stubs. |
+| 222 | `except (OSError, TimeoutError):` | Catch network read failures and timeouts separately from invalid event contents. |
+| 223 | `self.reply(408, {"error": "Request body could not be read in time."})` | Return HTTP 408 to identify an unreadable or timed-out body. |
+| 224 | `return` | Stop processing after the body-read failure response. |
+| 225 | `report = analyze(event, raw)` | Run the three mock-analysis stages only after authentication and validation succeed. |
+| 226 | `if self.path == "/preview":` | Check whether the caller requested a preview rather than email delivery. |
+| 227 | `self.reply(200, {"email_status": "not_sent_preview", "report": report})` | Return the report with explicit not_sent_preview status and HTTP 200. |
+| 228 | `return` | Stop the preview path so it can never fall through into SMTP sending. |
+| 229 | `try:` | Begin protected email sending so SMTP problems produce an explicit API result. |
+| 230 | `send_email(report, raw, subtype)` | Pass the report and original image to the real SMTP sender. |
+| 231 | `except (ValueError, OSError, smtplib.SMTPException):` | Catch configuration errors, socket failures and SMTP protocol/authentication/delivery exceptions. |
+| 232 | `self.reply(502, {"email_status": "failed_or_unconfirmed", "report": report,` | Return HTTP 502, mark sending failed or unconfirmed, and preserve the report for the caller. |
+| 233 | `"error": "SMTP failed. Check local configuration and provider status before retrying."})` | Provide a configuration/provider hint without exposing the raw SMTP exception or credentials. |
+| 234 | `return` | Stop the failed send path so it cannot claim SMTP acceptance. |
+| 235 | `self.reply(200, {"email_status": "accepted_by_smtp", "report": report})` | Return HTTP 200 with accepted_by_smtp only after sending completes without a caught exception. |
+| 238 | `def main():` | Define the main function: Start on loopback only; require a token. Stops on Ctrl+C; writes no patient files. |
+| 239 | `"""Start on loopback only; require a token. Stops on Ctrl+C; writes no patient files."""` | Document the surrounding module or callable: Start on loopback only; require a token. Stops on Ctrl+C; writes no patient files. |
+| 240 | `token = os.environ.get("API_TOKEN", "")` | Read the API token from the environment; an absent token becomes an empty string. |
+| 241 | `if len(token) < 16:` | Require at least 16 characters before starting the server; the setup guide recommends a randomly generated token. |
+| 242 | `raise SystemExit("Set API_TOKEN to a random secret of at least 16 characters.")` | Exit with a setup message if the token is missing or too short. |
+| 243 | `server = HTTPServer(("127.0.0.1", int(os.environ.get("PORT", "8000"))), Handler)` | Bind the HTTPServer to loopback on PORT (default 8000) and register the request handler. |
+| 244 | `server.api_token = token` | Attach the configured token to the server object for authenticated POST handling. |
+| 245 | `print(f"Demo API listening on http://127.0.0.1:{server.server_port}; Ctrl+C to stop.")` | Print the actual listening address after binding succeeds, without displaying the token. |
+| 246 | `try:` | Enter a protected serving loop so interruption still triggers socket cleanup. |
+| 247 | `server.serve_forever()` | Process requests sequentially until the process is interrupted. |
+| 248 | `except KeyboardInterrupt:` | Catch Ctrl+C as a normal interactive shutdown request. |
+| 249 | `pass` | Take no additional action for that interruption; cleanup happens in finally. |
+| 250 | `finally:` | Ensure the following cleanup runs whether serving ends normally or by exception. |
+| 251 | `server.server_close()` | Close the listening socket rather than leaving the server resource open. |
+| 254 | `if __name__ == "__main__":` | Start the application only when this file is executed directly, allowing tests to import it without starting a server. |
+| 255 | `main()` | Invoke the startup function under that direct-execution guard. |
 
 ## test_pipeline.py
 
@@ -399,30 +408,29 @@ The production path is validation -> fixed food stub -> fixed glucose stub -> su
 | 178 | `attachment, = list(message.iter_attachments())` | Unpack exactly one attachment, making missing or extra attachments fail the test. |
 | 179 | `self.assertEqual(attachment.get_payload(decode=True), PNG)` | Decode the attachment and compare it byte for byte with the original PNG fixture. |
 | 180 | `self.assertEqual(attachment.get_content_type(), "image/png")` | Require the attachment MIME type to be image/png. |
-| 181 | `self.assertIn('"value": 7.2', message.get_body(preferencelist=("plain",)).get_content())` | Require the plain-text report body to include the original 7.2 reading rather than losing it during serialization. |
-| 183 | `def test_smtp_rejection_is_failure(self):` | Define the test_smtp_rejection_is_failure function: test smtp rejection is failure |
-| 184 | `status, result, messages = self.smtp_roundtrip(reject=True)` | Run the real local SMTP path with the receiver deliberately rejecting the message body. |
-| 185 | `self.assertEqual((status, result["email_status"]), (502, "failed_or_unconfirmed"))` | Require HTTP 502 and failed_or_unconfirmed status instead of reporting acceptance. |
-| 187 | `def test_missing_smtp_configuration(self):` | Define the test_missing_smtp_configuration function: test missing smtp configuration |
-| 188 | `with patch.dict(os.environ, {}, clear=True):` | Temporarily clear all environment variables so no SMTP settings can leak in from the developer's terminal. |
-| 189 | `self.assertEqual(self.request(path="/events")[0], 502)` | Require HTTP 502 when /events cannot obtain required SMTP configuration. |
-| 191 | `def test_remote_plaintext_smtp_blocked(self):` | Define the test_remote_plaintext_smtp_blocked function: test remote plaintext smtp blocked |
-| 192 | `with patch.dict(os.environ, {"SMTP_HOST": "example.test", "SMTP_MODE": "plain",` | Configure a synthetic remote SMTP hostname with plaintext transport to exercise its validation restriction. |
-| 193 | `"SMTP_FROM": "a@example.test", "SMTP_TO": "b@example.test"}, clear=True):` | Supply otherwise sufficient sender and recipient settings so the mode restriction is the reason for failure. |
-| 194 | `with self.assertRaises(ValueError):` | Require configuration validation to raise ValueError for remote plaintext SMTP. |
-| 195 | `server.smtp_settings()` | Call only settings validation; do not attempt a network connection to that hostname. |
-| 197 | `def test_starttls_and_login_are_used(self):` | Define the test_starttls_and_login_are_used function: test starttls and login are used |
-| 198 | `event, raw, subtype = server.validate_event(EVENT)` | Validate the shared fixture for direct testing of the SMTP sender's secure-mode calls. |
-| 199 | `with patch.dict(os.environ, {"SMTP_HOST": "example.test", "SMTP_FROM": "a@example.test",` | Provide synthetic SMTP host/sender settings inside an isolated temporary environment. |
-| 200 | `"SMTP_TO": "b@example.test", "SMTP_USER": "test-user",` | Add a synthetic recipient and username for authentication testing. |
-| 201 | `"SMTP_PASSWORD": "test-secret"}, clear=True), patch.object(server.smtplib, "SMTP") as smtp:` | Add a dummy test password and replace the SMTP class with a mock so no external connection occurs. |
-| 202 | `server.send_email(server.analyze(event, raw), raw, subtype)` | Build the report and invoke the actual email-construction/sending function against the mocked client. |
-| 203 | `client = smtp.return_value.__enter__.return_value` | Access the SMTP instance returned by the mocked context manager for method assertions. |
-| 204 | `client.starttls.assert_called_once()` | Require STARTTLS to have been invoked exactly once. |
-| 205 | `client.login.assert_called_once_with("test-user", "test-secret")` | Require login exactly once with the dummy username and password, verifying credential forwarding. |
-| 206 | `client.send_message.assert_called_once()` | Require one send_message call, verifying that secure setup is followed by sending. |
-| 209 | `if __name__ == "__main__":` | Run unittest only when this test file is executed directly; importing it merely defines fixtures and tests. |
-| 210 | `unittest.main()` | Start unittest discovery/execution for this module under the direct-execution guard. |
+| 205 | `def test_smtp_rejection_is_failure(self):` | Define the test_smtp_rejection_is_failure function: test smtp rejection is failure |
+| 206 | `status, result, messages = self.smtp_roundtrip(reject=True)` | Run the real local SMTP path with the receiver deliberately rejecting the message body. |
+| 207 | `self.assertEqual((status, result["email_status"]), (502, "failed_or_unconfirmed"))` | Require HTTP 502 and failed_or_unconfirmed status instead of reporting acceptance. |
+| 209 | `def test_missing_smtp_configuration(self):` | Define the test_missing_smtp_configuration function: test missing smtp configuration |
+| 210 | `with patch.dict(os.environ, {}, clear=True):` | Temporarily clear all environment variables so no SMTP settings can leak in from the developer's terminal. |
+| 211 | `self.assertEqual(self.request(path="/events")[0], 502)` | Require HTTP 502 when /events cannot obtain required SMTP configuration. |
+| 213 | `def test_remote_plaintext_smtp_blocked(self):` | Define the test_remote_plaintext_smtp_blocked function: test remote plaintext smtp blocked |
+| 214 | `with patch.dict(os.environ, {"SMTP_HOST": "example.test", "SMTP_MODE": "plain",` | Configure a synthetic remote SMTP hostname with plaintext transport to exercise its validation restriction. |
+| 215 | `"SMTP_FROM": "a@example.test", "SMTP_TO": "b@example.test"}, clear=True):` | Supply otherwise sufficient sender and recipient settings so the mode restriction is the reason for failure. |
+| 216 | `with self.assertRaises(ValueError):` | Require configuration validation to raise ValueError for remote plaintext SMTP. |
+| 217 | `server.smtp_settings()` | Call only settings validation; do not attempt a network connection to that hostname. |
+| 219 | `def test_starttls_and_login_are_used(self):` | Define the test_starttls_and_login_are_used function: test starttls and login are used |
+| 220 | `event, raw, subtype = server.validate_event(EVENT)` | Validate the shared fixture for direct testing of the SMTP sender's secure-mode calls. |
+| 221 | `with patch.dict(os.environ, {"SMTP_HOST": "example.test", "SMTP_FROM": "a@example.test",` | Provide synthetic SMTP host/sender settings inside an isolated temporary environment. |
+| 222 | `"SMTP_TO": "b@example.test", "SMTP_USER": "test-user",` | Add a synthetic recipient and username for authentication testing. |
+| 223 | `"SMTP_PASSWORD": "test-secret"}, clear=True), patch.object(server.smtplib, "SMTP") as smtp:` | Add a dummy test password and replace the SMTP class with a mock so no external connection occurs. |
+| 224 | `server.send_email(server.analyze(event, raw), raw, subtype)` | Build the report and invoke the actual email-construction/sending function against the mocked client. |
+| 225 | `client = smtp.return_value.__enter__.return_value` | Access the SMTP instance returned by the mocked context manager for method assertions. |
+| 226 | `client.starttls.assert_called_once()` | Require STARTTLS to have been invoked exactly once. |
+| 227 | `client.login.assert_called_once_with("test-user", "test-secret")` | Require login exactly once with the dummy username and password, verifying credential forwarding. |
+| 228 | `client.send_message.assert_called_once()` | Require one send_message call, verifying that secure setup is followed by sending. |
+| 231 | `if __name__ == "__main__":` | Run unittest only when this test file is executed directly; importing it merely defines fixtures and tests. |
+| 232 | `unittest.main()` | Start unittest discovery/execution for this module under the direct-execution guard. |
 
 ## start_local.py
 

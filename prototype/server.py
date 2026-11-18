@@ -12,6 +12,8 @@ from datetime import datetime
 from email.message import EmailMessage
 from email.utils import parseaddr
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from email_report import format_email_report
+from caregiver_view import caregiver_summary, demo_forecast, as_time
 
 MAX_IMAGE = 5 * 1024 * 1024
 MAX_BODY = 7 * 1024 * 1024
@@ -20,7 +22,7 @@ DISCLAIMER = (
     "Ranges are illustrative, not validated 90% confidence intervals. "
     "Do not use these outputs to decide insulin timing, dosage, or medical urgency. "
     "Use actual glucose measurements and the patient's clinician-provided care plan. "
-    "This prototype does not detect emergencies."
+    "This prototype is not validated for emergency detection."
 )
 
 
@@ -35,6 +37,18 @@ def timestamp(value):
     if parsed.utcoffset() is None:
         raise ValueError("Timestamps must include a timezone.")
     return value
+
+
+def validate_reading(glucose):
+    """Reading object -> validated value, original unit and timezone-qualified measurement time."""
+    if not isinstance(glucose, dict):
+        raise ValueError("glucose must be an object.")
+    value, unit = glucose.get("value"), glucose.get("unit")
+    if type(value) not in (int, float) or not math.isfinite(value) or not 0 < value <= 10000:
+        raise ValueError("glucose.value must be a finite positive number within the input limit.")
+    if unit not in ("mg/dL", "mmol/L"):
+        raise ValueError("glucose.unit must be mg/dL or mmol/L.")
+    return {"value": value, "unit": unit, "measured_at": timestamp(glucose.get("measured_at"))}
 
 
 def validate_event(data):
@@ -70,15 +84,20 @@ def validate_event(data):
         raise ValueError("Only PNG or JPEG image signatures are accepted.")
     glucose = data.get("glucose")
     if glucose is not None:
-        if not isinstance(glucose, dict):
-            raise ValueError("glucose must be an object or null.")
-        value, unit = glucose.get("value"), glucose.get("unit")
-        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
-            raise ValueError("glucose.value must be a finite positive number.")
-        if unit not in ("mg/dL", "mmol/L"):
-            raise ValueError("glucose.unit must be mg/dL or mmol/L.")
-        glucose = {"value": value, "unit": unit, "measured_at": timestamp(glucose.get("measured_at"))}
+        glucose = validate_reading(glucose)
+    history = data.get("glucose_history", [])
+    if not isinstance(history, list) or len(history) > 288:
+        raise ValueError("glucose_history must be a list of at most 288 readings.")
+    history = sorted([validate_reading(item) for item in history], key=lambda item: as_time(item["measured_at"]))
+    if glucose is None and history:
+        glucose = history.pop()
+    if glucose and history and as_time(history[-1]["measured_at"]) > as_time(glucose["measured_at"]):
+        raise ValueError("The current glucose must not precede the latest history entry.")
+    for key in ("synthetic", "severe_symptoms"):
+        if type(data.get(key, False)) is not bool:
+            raise ValueError(key + " must be a boolean.")
     event = {"patient_id": patient, "meal_captured_at": captured, "glucose": glucose}
+    event.update(glucose_history=history, synthetic=data.get("synthetic", False), severe_symptoms=data.get("severe_symptoms", False))
     return event, raw, subtype
 
 
@@ -113,12 +132,14 @@ def analyze(event, raw):
     """Run all stubs and return JSON-safe report; measured data stays separate."""
     food = mock_food_analysis(raw)
     glucose = mock_glucose_analysis(event, food)
+    action = caregiver_summary(event)
     return {
         "demo": True, "warning": DISCLAIMER, "original_information": event,
         "food": food, "estimated_current_glucose": glucose,
         "uncertainty": {"intended_coverage": 0.90, "validated": False,
                         "confidence_level": None, "meaning": "Illustrative demo ranges only"},
         "suggestions": mock_llm_analysis(event, food, glucose),
+        "caregiver_action": action, "forecast": demo_forecast(as_time(action["generated_at"])),
     }
 
 
@@ -153,11 +174,8 @@ def send_email(report, raw, subtype):
     configured SMTP_TO. SMTP acceptance does not prove delivery to an inbox.
     """
     config = smtp_settings()
-    message = EmailMessage()
-    message["Subject"] = "[SIMULATED DEMO] Meal and glucose caregiver report"
-    message["From"], message["To"] = config["FROM"], config["TO"]
-    message.set_content(DISCLAIMER + "\n\n" + json.dumps(report, indent=2, ensure_ascii=False))
-    message.add_attachment(raw, maintype="image", subtype=subtype, filename="meal." + subtype)
+    from visual_email import compose_email
+    message = compose_email(report, raw, subtype, config["FROM"], config["TO"])
     client = smtplib.SMTP_SSL if config["MODE"] == "ssl" else smtplib.SMTP
     options = {"timeout": 20}
     if config["MODE"] == "ssl":

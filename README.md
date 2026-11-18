@@ -4,6 +4,8 @@ Receives a meal photo and optional blood glucose information, runs replaceable m
 
 Requires Python 3.10 or later and no third-party packages.
 
+The visual caregiver email includes a colour-coded action summary, inline glucose history/demo forecast and food-analysis charts. PNG rendering uses Windows PowerShell and System.Drawing. Use `python prototype/run_demo.py --html-preview prototype/output/caregiver-preview.html` to preview locally without sending. See the prototype README for history-file format and the limits of the screening rules.
+
 ## Try the sample without sending email
 
 From the repository root:

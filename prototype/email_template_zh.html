@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>用餐与血糖照护报告</title></head>
+<body style="margin:0;background:#EDF2F7;font-family:'Microsoft YaHei','PingFang SC',Arial,sans-serif;color:#24364B">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:24px 10px">
+<table role="presentation" width="800" cellspacing="0" cellpadding="0" style="width:100%;max-width:800px;table-layout:fixed;background:white;border-radius:14px">
+<tr><td style="padding:12px 28px;background:#142D48;color:white"><p style="margin:0;font-size:12px">陪伴照护助手 · 原型演示 · $patient</p><p style="margin:4px 0 0;font-size:11px">生成时间：$prepared</p></td></tr>
+<tr><td style="padding:14px 28px 0">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="padding:20px;background:$background;border-left:6px solid $color">
+<p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:$color">照护建议 · 请先查看 · $level</p>
+<h1 style="margin:0 0 14px;font-size:25px;color:$color">$action_title</h1>
+<p style="margin:0 0 14px;font-size:17px;line-height:1.7"><b>需要补糖还是减少糖分？</b><br>$sugar_action</p>
+<p style="margin:0;font-size:17px;line-height:1.7"><b>是否需要就医？</b><br>$doctor_action</p>
+<p style="margin:14px 0 0;font-size:12px;line-height:1.7;color:#64748B">$action_detail</p></td></tr></table>
+<p style="font-size:12px;line-height:1.7;color:#64748B">颜色说明：红色＝紧急求助；黄色＝检查／复核；绿色＝继续监测。提醒依据提供的实测数据及症状，个人照护方案优先。</p></td></tr>
+<tr><td style="padding:4px 28px 16px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="padding:20px;background:#F4EFFF;border-left:6px solid #8055CF">
+<p style="margin:0;font-size:14px;font-weight:bold;color:#7050A5">当前血糖估算（模拟）</p><p style="margin:10px 0;font-size:38px;font-weight:bold;color:#7050A5">$estimated_current</p>
+<p style="margin:0;font-size:14px;line-height:1.7">演示范围：$estimated_range<br>固定演示估算，并非实测值或经过验证的预测。</p></td></tr></table></td></tr>
+<tr><td style="padding:4px 28px 20px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
+<td width="50%" valign="top" style="padding:16px;background:#F3F7FB"><p style="margin:0;font-size:12px">$current_label</p><p style="margin:10px 0;font-size:30px;font-weight:bold">$current</p><p style="margin:0;font-size:12px;line-height:1.7">$measured_at<br>$freshness</p></td>
+<td width="50%" valign="top" style="padding:16px;background:#F4EFFF"><p style="margin:0;font-size:12px;color:#7050A5">30 分钟后预测（模拟）</p><p style="margin:10px 0;font-size:30px;font-weight:bold;color:#7050A5">$forecast_value</p><p style="margin:0;font-size:12px;line-height:1.7">演示范围：$forecast_range mg/dL<br>固定示例，未经验证</p></td>
+</tr></table></td></tr>
+<tr><td style="padding:0 12px 22px"><h2 style="margin:0 0 8px;font-size:21px">血糖变化：历史、当前及未来</h2>
+<p style="font-size:13px;line-height:1.7;color:#64748B">$history_note。图中单位均为 mg/dL，时间为香港时间（UTC+08:00）。</p>
+<img src="$glucose_image" alt="血糖历史、当前模拟估算及未来模拟预测图" width="776" style="display:block;width:100%;height:auto;border:1px solid #E2E8F0">
+<p style="font-size:12px;line-height:1.7;color:#64748B">紫色“现在”标记表示当前估算；紫色虚线及阴影表示模拟预测与演示范围，不用于触发提醒。70／180 水平线仅为示例参考，个人目标可能不同。未提供实测数据时，图中的演示读数不用于照护建议。</p>
+<p style="font-size:13px;line-height:1.7">$history_values</p></td></tr>
+<tr><td style="padding:0 28px 24px"><h2 style="margin:0 0 12px;font-size:21px">用餐照片与食物分析</h2>
+<img src="$meal_image" alt="桌侧视角的用餐照片，人物面部不在画面中" width="744" style="display:block;width:100%;height:auto;max-height:460px;object-fit:contain;background:#F8FAFC">
+<p style="font-size:12px;color:#64748B">用餐记录时间：$meal_time · $food_source</p>
+<img src="$food_image" alt="模拟糖分与总碳水化合物估算及演示范围" width="744" style="display:block;width:100%;height:auto;border:1px solid #E2E8F0">
+<p style="font-size:13px;line-height:1.7">总碳水化合物：<b>$carbs_value g</b>（$carbs_range g）；糖：<b>$sugar_value g</b>（$sugar_range g）。均为固定演示估算，与照片内容无关。糖已包含在总碳水化合物中。</p></td></tr>
+<tr><td style="padding:0 28px 24px"><h2 style="margin:0 0 10px;font-size:21px">照护备注</h2><p style="margin:0;line-height:1.8">$suggestions</p></td></tr>
+<tr><td style="padding:22px 28px;background:#F3F7FB"><b>原型说明</b><p style="font-size:12px;line-height:1.8">$warning</p>
+<p style="font-size:12px;line-height:1.8">不提供胰岛素用药时间或剂量建议。无论显示何种颜色，如有严重症状都应立即求助。邮件不是紧急监护渠道。</p>
+<p style="font-size:11px"><a href="https://www.cdc.gov/diabetes/treatment/treatment-low-blood-sugar-hypoglycemia.html">低血糖处理参考（英文）</a> · <a href="https://www.cdc.gov/diabetes/about/diabetic-ketoacidosis.html">高血糖紧急症状参考（英文）</a></p></td></tr>
+</table></td></tr></table></body></html>

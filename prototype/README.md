@@ -6,6 +6,50 @@ All food estimates, estimated current glucose and suggestions are **simulated**.
 
 ## Automatic demo: one command
 
+The current-glucose model estimate now has its own prominent card (demo: **140 mg/dL**, illustrative range **100 to 190 mg/dL**) and a purple NOW marker on the glucose chart. The email maximum width is 800 px and the glucose PNG is 1200 by 720, giving a wider and taller chart with larger labels. Advice still comes first. See [updated preview](output/caregiver-large-chart.html) and [complete changed-line explanation](CHART_ESTIMATE_WALKTHROUGH.md).
+
+The opening colour card now shows the sugar advice and medical-help advice before any readings or charts, under a compact header. If the glucose display has no supplied readings, it shows a labelled 138 mg/dL demo value plus five example timeline points (108, 116, 128, 145, 138 mg/dL). These values only fill the visual display: original missing measurements remain null and the advice still asks for a current measured reading. Supplied patient values are never replaced. See [the advice-first preview](output/caregiver-advice-first.html), [phone screenshot](output/caregiver-advice-phone.png), and [line-by-line changes](ADVICE_LAYOUT_WALKTHROUGH.md) after generating the local previews.
+
+Emails now use [`email_template.html`](email_template.html), with a prominent colour-coded caregiver action summary, a history/latest/forecast glucose chart, the original meal image and a carbohydrate/sugar chart. Red indicates an urgent screening alert, amber indicates check/review, and teal indicates no threshold alert in a fresh supplied reading. These generic checks do not certify safety. PNG charts are embedded directly in the message using content IDs, with a readable text alternative. The photo is delivered as an inline image with its original bytes and a downloadable filename.
+
+This visual version requires Windows PowerShell and the built-in System.Drawing library. It installs no packages. Rendering is local, with no external image host. Gmail/QQ support HTML emails and embedded images, although exact appearance depends on the client; some clients may require enabling images. The existing SMTP sender and one-command workflow use the template automatically.
+
+To inspect the email locally without sending, run from the repository root:
+
+```powershell
+python prototype/run_demo.py --html-preview prototype/output/caregiver-preview.html
+```
+
+Open the resulting HTML file in a browser. It includes the photo and both charts. To see example history, use the explicitly synthetic fixture:
+
+```powershell
+python prototype/run_demo.py --glucose prototype/samples/glucose-history.example.json --html-preview prototype/output/caregiver-history-preview.html
+```
+
+The example fixture's `synthetic: true` flag makes its action card show demonstration-only status. Never use invented readings as patient measurements. Preview HTML may contain health information when you supply real readings; generated previews are excluded from Git under `output/`.
+
+A glucose file can still contain one reading. It can now also contain:
+
+```json
+{
+  "current": {"value": 138, "unit": "mg/dL", "measured_at": "2026-11-13T20:00:00+08:00"},
+  "history": [
+    {"value": 115, "unit": "mg/dL", "measured_at": "2026-11-13T19:00:00+08:00"},
+    {"value": 125, "unit": "mg/dL", "measured_at": "2026-11-13T19:30:00+08:00"}
+  ],
+  "synthetic": true,
+  "severe_symptoms": false
+}
+```
+
+For actual patient readings, use actual timestamps and set `synthetic` to false. `severe_symptoms` is a caregiver/device-supplied flag for severe symptoms such as unconsciousness or breathing difficulty; this prototype does not detect symptoms. Never assume its default false means symptoms are absent. The HTTP schema accepts the same history as `glucose_history` beside `glucose`, plus these two flags. Up to 288 history entries are accepted, sorted by timestamp. A current reading must not precede the latest history entry; if only history is supplied, the latest entry becomes the current recorded reading. No history is invented or persisted between runs; supply previous readings in the file/request.
+
+Charts convert measured mmol/L readings to mg/dL for a consistent axis, while the latest-value card retains the original unit. Display times use Hong Kong time. Dashed forecasts at +30, +60 and +120 minutes are fixed examples with illustrative ranges; they never trigger action cards. Sugar is a subset of total carbohydrates, so the food bars must not be added.
+
+The screening rules use supplied severe symptoms or a measurement at most 15 minutes old (a conservative prototype freshness policy). Synthetic/missing/stale/future-dated readings cannot produce a reassuring card. Below 55 mg/dL triggers urgent help; below 70 triggers the prescribed low-glucose plan; at least 250 triggers care-team/ketone-plan review. Repeated supplied readings at least 300 mg/dL within two hours trigger emergency help. Above the example 180 mg/dL chart reference triggers review, whose meaning depends on personal targets and meal timing. Other fresh readings show no threshold alert, with continued monitoring. No insulin dose/timing is calculated, and severe symptoms require help regardless of readings.
+
+The underlying guidance is [CDC low-glucose treatment](https://www.cdc.gov/diabetes/treatment/treatment-low-blood-sugar-hypoglycemia.html) and [CDC DKA emergency signs](https://www.cdc.gov/diabetes/about/diabetic-ketoacidosis.html). The 15-minute freshness limit, 180 reference and two-hour history window are prototype policies, not validated clinical decision rules. These visual/action checks require clinical review before patient deployment. See the [complete visual-email walkthrough](VISUAL_EMAIL_WALKTHROUGH.md).
+
 From the workspace root, run:
 
 ```powershell
@@ -107,7 +151,7 @@ Glucose is optional: omit `glucose` or set it to null. If supplied, include all 
 
 `report.original_information` contains the patient identifier, meal time and original glucose information. `food` contains separate sugar and total carbohydrate estimates in grams. `estimated_current_glucose` is always the same synthetic 140 mg/dL example, with an illustrative range of 100–190 mg/dL, regardless of the meal or measured reading. This is deliberately a placeholder, not a patient model. Sugar is fixed at 12 g (6–20 g); carbohydrates at 60 g (40–85 g).
 
-`uncertainty.intended_coverage` records the future target of 0.90, while `validated=false` and `confidence_level=null` explicitly deny a statistical confidence claim. `suggestions` is a template using the patient identifier and whether a measurement was supplied. It performs no actual personalized medical reasoning. The email contains the warning, full report as readable JSON, and original meal image as an attachment.
+`uncertainty.intended_coverage` records the future target of 0.90, while `validated=false` and `confidence_level=null` explicitly deny a statistical confidence claim. `suggestions` is a template using the patient identifier and whether a measurement was supplied. It performs no actual personalized medical reasoning. The email is a readable plain-text report with patient and meal details, the original glucose reading (or an explicit missing-reading message), separately labelled simulated food/current-glucose estimates, illustrative ranges, caregiver notes and demo limitations. Dates are displayed with their UTC offset. The original meal image remains attached. Internal API responses and terminal previews remain JSON. See [a synthetic example email](samples/demo-email.txt) and [the formatting code walkthrough](EMAIL_WALKTHROUGH.md).
 
 | Result | Meaning |
 | --- | --- |
@@ -149,3 +193,8 @@ python start_local.py
 The first command selects the local CA bundle for this terminal's child Python processes; the second starts the existing launcher. This bundle is a snapshot of Windows trust at export time and may need refreshing if that trust changes. The launcher does not select it automatically. Do not disable TLS certificate verification to work around certificate errors.
 
 See [PROGRESS.md](PROGRESS.md) for the verification record and [CODE_WALKTHROUGH.md](CODE_WALKTHROUGH.md) for the complete line-by-line explanation. No previous code or behavior was removed.
+
+
+## Chinese email
+
+Use `python prototype/run_demo.py --language zh-CN` to send one Simplified Chinese email using the same configured SMTP recipient and current default meal photo. To preview without sending: `python prototype/run_demo.py --language zh-CN --html-preview prototype/output/caregiver-chinese.html`. The Chinese subject, text fallback, HTML and charts retain all simulation labels. English remains the default (`--language en`). See [complete changed-line explanation](CHINESE_EMAIL_WALKTHROUGH.md).
