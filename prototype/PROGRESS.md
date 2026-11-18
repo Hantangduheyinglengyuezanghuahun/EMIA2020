@@ -152,3 +152,8 @@
 - User requested pushing the completed prototype to the existing origin, Hantangduheyinglengyuezanghuahun/EMIA2020, main branch. Scope is the prototype and root README, including readable/HTML caregiver emails, larger charts, current-estimate display, Chinese version and side-of-table sample photo. Unrelated Checkpoint2 and Checkpoint3 folders remain untracked. No application code or running service changed for publication.
 - Rechecked current state: all 35 tests passed with python -m unittest -v test_chinese_email test_visual_email test_demo test_pipeline. Scanned all 27 publication candidates for the configured password (compact/spaced forms), private email addresses, private-key material and common GitHub token patterns: no findings. No private SMTP configuration, CA bundle, optional patient glucose input or output previews are tracked.
 - Remote main matched local c1ea94effb186e9869b8579d2b8bf633cf316570 before publication. Windows Schannel failed credential acquisition for read-only remote discovery; command-specific http.sslBackend=openssl succeeded without changing any global Git or TLS verification setting. Commit/push verification will be recorded after successful publication.
+
+## Verified GitHub publication - 2026-11-18
+
+- Pushed feature commit 053d999 (Add visual caregiver reports with Chinese email support) to origin/main. Independently queried the remote branch after the push and confirmed it matches the local feature commit. Publication contains only the 27 reviewed prototype/README files; all staged blobs passed the secret/private-address scan. The progress-record confirmation is committed separately. No email was sent or existing workload changed for this publication.
+
