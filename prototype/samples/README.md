@@ -1,5 +1,14 @@
 # Synthetic sample meal image
 
+## Additional overhead viewpoint - 2026-11-18
+
+`demo-meal-top-view.png` is a separate, directly overhead view of the current side-of-table meal scene, created with the built-in image-generation tool and the imagegen skill. It retains the Chinese chicken/vegetable dish, rice bowl, blue-and-white porcelain and the diner's hands, with no face visible. `demo-meal.png` and the older `demo-meal-overhead.png` remain unchanged. The default runner image is unchanged. The new PNG was copied without pixel edits and visually checked.
+
+Final edit prompt:
+
+> Use case: precise-object-edit. Edit target: the supplied fictional Chinese home-meal image. Generate another viewpoint of exactly this scene, now photographed from DIRECTLY ABOVE the dining table, a true overhead top-down camera looking vertically down. Preserve the same wooden tabletop, same blue-and-white Chinese porcelain plate of chicken stir-fried with broccoli and carrot slices in light sauce, matching separate rice bowl to the right, and same older diner in navy cardigan and checked shirt actively eating with wooden chopsticks. Show the entire round plate and rice bowl from above, with the food and dish contents clearly visible and natural relative sizes. Keep the diner at the top edge of the frame: only forearms, hands and a small part of clothed torso visible, one hand holding chopsticks with a piece of chicken above the plate, other hand beside the rice bowl. Do not show any face, head, eyes, mouth or identifiable portrait. Maintain soft natural window light, realistic food and wooden textures, generous tabletop surrounding the meal, landscape composition. This is a change of camera viewpoint, not a different meal: preserve dish identity, porcelain pattern, food types and setting. No text, logos, watermarks, medical devices or camera device visible. Synthetic demonstration content.
+
+
 The original overhead image, preserved as `demo-meal-overhead.png`, was created on 2026-11-09 with the built-in image-generation tool, using the imagegen skill. It depicts rice, chicken, broccoli and carrots on a white plate. It is a fictional demonstration asset, not an actual patient record, calibrated portion reference or dietary recommendation.
 
 The image is intended for the existing meal-submission JSON request. Its pixels do not determine the current fixed food/glucose estimates; CV and glucose analysis remain stubs. Starting the server does not automatically process or email the photo.

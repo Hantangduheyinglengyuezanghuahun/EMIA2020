@@ -157,3 +157,9 @@
 
 - Pushed feature commit 053d999 (Add visual caregiver reports with Chinese email support) to origin/main. Independently queried the remote branch after the push and confirmed it matches the local feature commit. Publication contains only the 27 reviewed prototype/README files; all staged blobs passed the secret/private-address scan. The progress-record confirmation is committed separately. No email was sent or existing workload changed for this publication.
 
+
+## Additional overhead meal view - 2026-11-18
+
+- User requested a separate view from above of samples/demo-meal.png without replacing it. Used the imagegen skill and built-in editor to generate samples/demo-meal-top-view.png, retaining the meal, Chinese porcelain, rice bowl and diner hands, with the face outside the frame. Visually inspected the overhead result. Samples README records the complete prompt.
+- Verified the new PNG signature and dimensions and confirmed the original demo-meal.png SHA-256 is unchanged (1b35f9fc2b4c37774e2f8f663f9963fd174d90e112c788b3a43b196fed3aeb00). No code, default input, service or SMTP setting changed. No email sent or Git commit/push performed.
+

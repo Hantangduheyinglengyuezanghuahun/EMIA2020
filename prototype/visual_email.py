@@ -14,6 +14,7 @@ from caregiver_view import as_time, mgdl
 from email_report import format_email_report
 
 ROOT = Path(__file__).resolve().parent
+LOGO = ROOT / "samples" / "8c067082-8ffa-479f-9531-aeddc01b81f8.JPG"
 
 
 def display_readings(report):
@@ -30,7 +31,8 @@ def display_readings(report):
         return readings, original.get("synthetic", False)
     now = as_time(report["caregiver_action"]["generated_at"])
     return [{"value": value, "unit": "mg/dL", "measured_at": (now + timedelta(minutes=minutes)).isoformat()}
-            for minutes, value in ((-120, 108), (-90, 116), (-60, 128), (-30, 145), (0, 138))], True
+            for minutes, value in ((-120, 250), (-90, 240), (-60, 220), (-30, 195),
+                                   (0, report["estimated_current_glucose"]["estimate"]))], True
 
 
 def chart_data(report):
@@ -49,7 +51,7 @@ def chart_data(report):
              "low": report["food"][key]["illustrative_range"][0], "high": report["food"][key]["illustrative_range"][1], "color": color}
             for label, key, color in (("Total carbohydrates", "carbohydrate_g", "#245FE8"), ("Sugar", "sugar_g", "#D48A16"))]
     data = {"measured": points, "forecast": forecast, "now": now, "min_x": min_x, "max_x": max_x, "ticks": ticks,
-            "max_y": math.ceil(max([p["y"] for p in points] + [p["high"] for p in forecast] + report["estimated_current_glucose"]["illustrative_range"] + [240])/40)*40,
+            "max_y": math.ceil(max([p["y"] for p in points] + [p["high"] for p in forecast] + report["estimated_current_glucose"]["illustrative_range"] + [240])/20)*20,
             "current_estimate": {"x": now, "y": report["estimated_current_glucose"]["estimate"],
                                  "low": report["estimated_current_glucose"]["illustrative_range"][0],
                                  "high": report["estimated_current_glucose"]["illustrative_range"][1]},
@@ -99,7 +101,9 @@ def html_body(report, sources, text_only=False):
               "suggestions": report["suggestions"], "warning": report["warning"]}
     estimate = report["estimated_current_glucose"]
     values.update(estimated_current=f"{estimate['estimate']:g} {estimate['unit']}",
-                  estimated_range=f"{estimate['illustrative_range'][0]:g} to {estimate['illustrative_range'][1]:g} {estimate['unit']}")
+                  estimated_range=f"{estimate['illustrative_range'][0]:g} to {estimate['illustrative_range'][1]:g} {estimate['unit']}",
+                  summary_status="Slightly High" if estimate.get("display_status") == "slightly_high" else "Simulation only",
+                  logo_image="cid:glycat-logo")
     forecast = report["forecast"][0]
     values.update(forecast_value=f"{forecast['estimate']:g} {forecast['unit']}", forecast_range=f"{forecast['low']:g} to {forecast['high']:g}")
     for key, name in (("carbohydrate_g", "carbs"), ("sugar_g", "sugar")):
@@ -118,7 +122,7 @@ def html_body(report, sources, text_only=False):
 
 
 def compose_email(report, raw, subtype, sender, recipient):
-    """Report/image/addresses -> MIME message with text, HTML and three downloadable inline images."""
+    """Report/image/addresses -> MIME email with charts, supplied meal bytes and local GlyCat logo."""
     charts = render_charts(report)
     message = EmailMessage()
     message["Subject"] = "[SIMULATED DEMO] " + report["caregiver_action"]["title"]
@@ -132,6 +136,7 @@ def compose_email(report, raw, subtype, sender, recipient):
     for name, image in charts.items():
         part.add_related(image, maintype="image", subtype="png", cid=f"<{name}-chart>", filename=name + "-chart.png", disposition="inline")
     part.add_related(raw, maintype="image", subtype=subtype, cid="<meal-photo>", filename="meal." + subtype, disposition="inline")
+    part.add_related(LOGO.read_bytes(), maintype="image", subtype="jpeg", cid="<glycat-logo>", filename="glycat-logo.jpg", disposition="inline")
     return message
 
 
@@ -140,6 +145,7 @@ def write_preview(report, raw, subtype, destination):
     charts = render_charts(report)
     sources = {name + "_image": "data:image/png;base64," + base64.b64encode(image).decode("ascii") for name, image in charts.items()}
     sources["meal_image"] = f"data:image/{subtype};base64," + base64.b64encode(raw).decode("ascii")
+    sources["logo_image"] = "data:image/jpeg;base64," + base64.b64encode(LOGO.read_bytes()).decode("ascii")
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(html_body(report, sources), encoding="utf-8")

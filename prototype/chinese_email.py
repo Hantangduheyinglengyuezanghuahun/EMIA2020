@@ -55,6 +55,7 @@ def action_text(action):
 def display_values(report, values, history, example):
     """Report + English value dict -> Chinese copy; source records remain unchanged."""
     result = dict(values)
+    result["summary_status"] = "略高" if report["estimated_current_glucose"].get("display_status") == "slightly_high" else "仅供模拟演示"
     result.update(action_text(report["caregiver_action"]))
     readable = lambda value: as_time(value).astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M") + "（香港时间）"
     result.update(level={"urgent": "紧急求助", "review": "需要检查", "monitor": "继续监测"}[report["caregiver_action"]["level"]],

@@ -112,8 +112,9 @@ def mock_food_analysis(image_bytes):
 
 def mock_glucose_analysis(event, food):
     """Replaceable model stub: dicts -> fixed mg/dL estimate; ignores measurements."""
-    return {"source": "fixed_demo_stub", "estimate": 140, "unit": "mg/dL",
-            "illustrative_range": [100, 190], "uses_measured_glucose": False}
+    return {"source": "fixed_demo_stub", "estimate": 168, "unit": "mg/dL",
+            "illustrative_range": [135, 190], "uses_measured_glucose": False,
+            "display_status": "slightly_high"}
 
 
 def mock_llm_analysis(event, food, glucose):

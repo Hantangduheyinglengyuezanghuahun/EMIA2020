@@ -1,3 +1,5 @@
+GlyCat reference layout and one-time recipient selection: [complete changed-line explanation](GLYCAT_EMAIL_WALKTHROUGH.md).
+
 Chinese email option: [complete changed-line explanation](CHINESE_EMAIL_WALKTHROUGH.md).
 
 Latest chart size and current-estimate changes: [complete line-by-line explanation](CHART_ESTIMATE_WALKTHROUGH.md).

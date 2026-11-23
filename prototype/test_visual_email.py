@@ -97,14 +97,14 @@ class VisualEmailTests(unittest.TestCase):
         report = server.analyze(event, PNG)
         before = copy.deepcopy(report)
         html = visual_email.html_body(report, {"glucose_image": "cid:g", "food_image": "cid:f", "meal_image": "cid:m"})
-        self.assertIn("138 mg/dL", html)
+        self.assertIn("168 mg/dL", html)
         self.assertIn("ILLUSTRATIVE GLUCOSE (DEMO)", html)
         self.assertIn("not a patient measurement", html)
         self.assertNotIn("Unavailable", html)
         self.assertEqual(len(visual_email.chart_data(report)["measured"]), 5)
         self.assertEqual(visual_email.chart_data(report)["reading_label"], "DEMO example readings")
-        self.assertLess(html.index("Sugar: more or less?"), html.index("138 mg/dL"))
-        self.assertLess(html.index("Medical help"), html.index("138 mg/dL"))
+        self.assertLess(html.index("Sugar: more or less?"), html.index("168 mg/dL"))
+        self.assertLess(html.index("Medical help"), html.index("168 mg/dL"))
         self.assertEqual(report, before)
         self.assertEqual(report["caregiver_action"]["level"], "review")
 
@@ -128,6 +128,28 @@ class VisualEmailTests(unittest.TestCase):
         readings, example = visual_email.display_readings(report)
         self.assertFalse(example)
         self.assertEqual(readings, [event["glucose"]])
+
+    def test_glycat_reference_layout_and_embedded_logo(self):
+        """Check image roles, summary placement and demo-only history against the new references."""
+        event = self.event()
+        event["glucose"] = None
+        report = server.analyze(event, PNG)
+        before = copy.deepcopy(report)
+        message = visual_email.compose_email(report, PNG, "png", "sender@example.test", "caregiver@example.test")
+        html = message.get_body(preferencelist=("html",)).get_content()
+        self.assertLess(html.index("Medical help"), html.index("GLYCAT MEAL SUMMARY"))
+        self.assertLess(html.index("GLYCAT MEAL SUMMARY"), html.index("Glucose: previous, latest and future"))
+        self.assertIn("Slightly High", html)
+        self.assertIn("not a clinical classification", html)
+        self.assertEqual(html.count('src="cid:meal-photo"'), 1)
+        self.assertIn('src="cid:glycat-logo"', html)
+        images = {part.get("Content-ID"): part.get_payload(decode=True) for part in message.walk() if part.get_content_maintype() == "image"}
+        self.assertEqual(images["<glycat-logo>"], visual_email.LOGO.read_bytes())
+        self.assertEqual(images["<meal-photo>"], PNG)
+        self.assertEqual([p["y"] for p in visual_email.chart_data(report)["measured"]], [250, 240, 220, 195, 168])
+        self.assertEqual(report, before)
+        self.assertIsNone(report["original_information"]["glucose"])
+        self.assertEqual(report["caregiver_action"]["level"], "review")
 
 
 if __name__ == "__main__":

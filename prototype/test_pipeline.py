@@ -97,7 +97,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result["email_status"], "not_sent_preview")
         report = result["report"]
         self.assertEqual(report["original_information"]["glucose"], EVENT["glucose"])
-        self.assertEqual(report["estimated_current_glucose"]["estimate"], 140)
+        self.assertEqual(report["estimated_current_glucose"]["estimate"], 168)
         self.assertFalse(report["uncertainty"]["validated"])
         self.assertIsNone(report["uncertainty"]["confidence_level"])
         self.assertIn("Do not use", report["warning"])
@@ -187,7 +187,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("Measured glucose: 7.2 mmol/L", body)
         self.assertIn("Measurement time: 09 Nov 2026, 11:55 (UTC+0800)", body)
         self.assertIn("Sugar: 12 g (illustrative range: 6 to 20 g)", body)
-        self.assertIn("Estimated glucose: 140 mg/dL", body)
+        self.assertIn("Estimated glucose: 168 mg/dL", body)
         self.assertNotIn('"original_information"', body)
 
     def test_email_without_measured_glucose(self):

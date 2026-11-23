@@ -59,13 +59,14 @@ def main(argv=None):
     and public CA certificates are loaded only for a send. No HTTP server starts.
     """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--image", type=Path, default=ROOT / "samples" / "demo-meal.png")
+    parser.add_argument("--image", type=Path, default=ROOT / "samples" / "86bf78fb-207b-4f61-9428-e7dba996d03d.JPG")
     parser.add_argument("--glucose", type=Path, default=ROOT / "samples" / "glucose.json")
     parser.add_argument("--patient-id", default="demo-patient-001")
     parser.add_argument("--captured-at", help="Actual ISO 8601 meal capture time with timezone, if known.")
     parser.add_argument("--preview", action="store_true", help="Print the report without sending email.")
     parser.add_argument("--html-preview", type=Path, help="Save a visual HTML preview with embedded images; sends no email.")
     parser.add_argument("--language", choices=("en", "zh-CN"), default="en", help="Email language (default: en).")
+    parser.add_argument("--recipient", help="Override the recipient for this send only; private SMTP settings are unchanged.")
     args = parser.parse_args(argv)
     try:
         event, raw, subtype = read_event(args.image, args.glucose, args.patient_id, args.captured_at)
@@ -83,6 +84,8 @@ def main(argv=None):
             print("Preview complete; no email sent.")
             return 0
         load_mail_settings()
+        if args.recipient:
+            os.environ["SMTP_TO"] = args.recipient
         server.send_email(report, raw, subtype)
         print("Email accepted by SMTP for", os.environ["SMTP_TO"], "(inbox delivery not confirmed).")
         return 0

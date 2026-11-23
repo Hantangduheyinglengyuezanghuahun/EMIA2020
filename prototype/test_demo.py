@@ -50,6 +50,14 @@ class DemoTests(unittest.TestCase):
             self.assertIsNone(report["original_information"]["glucose"])
             self.assertEqual(attachment, PNG)
 
+    def test_one_time_recipient_override_does_not_write_configuration(self):
+        """Override delivery in process only; retain the default recipient on the next configured run."""
+        with patch.object(run_demo, "load_mail_settings"), patch.object(run_demo.server, "send_email") as send, patch.dict(os.environ, {"SMTP_TO": "original@example.test"}), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(run_demo.main(self.args + ["--recipient", "requested@example.test"]), 0)
+            self.assertEqual(os.environ["SMTP_TO"], "requested@example.test")
+            send.assert_called_once()
+            self.assertFalse((self.root / ".env.smtp.json").exists())
+
     def test_invalid_existing_json_prevents_send(self):
         self.glucose.write_text("{", encoding="utf-8")
         with patch.object(run_demo.server, "send_email") as send, contextlib.redirect_stdout(io.StringIO()):

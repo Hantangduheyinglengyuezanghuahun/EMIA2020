@@ -6,9 +6,9 @@ All food estimates, estimated current glucose and suggestions are **simulated**.
 
 ## Automatic demo: one command
 
-The current-glucose model estimate now has its own prominent card (demo: **140 mg/dL**, illustrative range **100 to 190 mg/dL**) and a purple NOW marker on the glucose chart. The email maximum width is 800 px and the glucose PNG is 1200 by 720, giving a wider and taller chart with larger labels. Advice still comes first. See [updated preview](output/caregiver-large-chart.html) and [complete changed-line explanation](CHART_ESTIMATE_WALKTHROUGH.md).
+The current-glucose model estimate now has its own prominent card (demo: **168 mg/dL**, illustrative range **135 to 190 mg/dL**) and a purple NOW marker on the glucose chart. The email maximum width is 800 px and the glucose PNG is 1200 by 720, giving a wider and taller chart with larger labels. Advice still comes first. See [updated preview](output/caregiver-large-chart.html) and [complete changed-line explanation](CHART_ESTIMATE_WALKTHROUGH.md).
 
-The opening colour card now shows the sugar advice and medical-help advice before any readings or charts, under a compact header. If the glucose display has no supplied readings, it shows a labelled 138 mg/dL demo value plus five example timeline points (108, 116, 128, 145, 138 mg/dL). These values only fill the visual display: original missing measurements remain null and the advice still asks for a current measured reading. Supplied patient values are never replaced. See [the advice-first preview](output/caregiver-advice-first.html), [phone screenshot](output/caregiver-advice-phone.png), and [line-by-line changes](ADVICE_LAYOUT_WALKTHROUGH.md) after generating the local previews.
+The opening colour card now shows the sugar advice and medical-help advice before any readings or charts, under a compact header. If the glucose display has no supplied readings, it shows a labelled 168 mg/dL demo value plus five example timeline points (250, 240, 220, 195, 168 mg/dL). These values only fill the visual display: original missing measurements remain null and the advice still asks for a current measured reading. Supplied patient values are never replaced. See [the advice-first preview](output/caregiver-advice-first.html), [phone screenshot](output/caregiver-advice-phone.png), and [line-by-line changes](ADVICE_LAYOUT_WALKTHROUGH.md) after generating the local previews.
 
 Emails now use [`email_template.html`](email_template.html), with a prominent colour-coded caregiver action summary, a history/latest/forecast glucose chart, the original meal image and a carbohydrate/sugar chart. Red indicates an urgent screening alert, amber indicates check/review, and teal indicates no threshold alert in a fresh supplied reading. These generic checks do not certify safety. PNG charts are embedded directly in the message using content IDs, with a readable text alternative. The photo is delivered as an inline image with its original bytes and a downloadable filename.
 
@@ -198,3 +198,23 @@ See [PROGRESS.md](PROGRESS.md) for the verification record and [CODE_WALKTHROUGH
 ## Chinese email
 
 Use `python prototype/run_demo.py --language zh-CN` to send one Simplified Chinese email using the same configured SMTP recipient and current default meal photo. To preview without sending: `python prototype/run_demo.py --language zh-CN --html-preview prototype/output/caregiver-chinese.html`. The Chinese subject, text fallback, HTML and charts retain all simulation labels. English remains the default (`--language en`). See [complete changed-line explanation](CHINESE_EMAIL_WALKTHROUGH.md).
+
+
+## GlyCat reference design (23 November 2026)
+
+The HTML email now uses the supplied GlyCat logo and a blue meal-summary card with the meal photo, a prominent current estimate and yellow illustrative status badge. The card sits below the caregiver advice and directly above the glucose chart. English and Chinese templates share this structure; the photo appears only once. The newest demo estimate is 168 mg/dL, with illustrative range 135-190 mg/dL. The status badge is the reference design's fixed demo label, not a clinical classification or an input to alerts.
+
+The runner's default meal is now `samples/86bf78fb-207b-4f61-9428-e7dba996d03d.JPG`. Existing generated meal alternatives are preserved and remain selectable through `--image`. The logo uses the original JPEG bytes from `samples/8c067082-8ffa-479f-9531-aeddc01b81f8.JPG`; it is embedded in the email with a content ID, together with the meal photo and generated PNG charts. Reference layout images `907644a2-4f51-4dbb-8cc0-9c27a9f91279.JPG` and `b6829823-c955-493b-acfe-3df7ff7846da.JPG` guide the chart/card design; they are not patient measurements or screenshots attached in place of live output.
+
+When no readings are supplied, the display-only example series is 250, 240, 220, 195 and the current model estimate, anchored to report generation time. The unlabelled intermediate values in the reference are represented by 220 and 195 for this demonstration. Original missing readings remain null; actual supplied readings are preserved. Shaded ranges are unvalidated illustrative ranges, not statistically validated confidence intervals.
+
+Preview commands:
+
+```powershell
+python prototype/run_demo.py --html-preview prototype/output/glycat-reference-en.html
+python prototype/run_demo.py --language zh-CN --html-preview prototype/output/glycat-reference-zh.html
+```
+
+For a one-time recipient change, append `--recipient caregiver@example.test` to the send command with the actual authorized address. It changes this process's SMTP_TO after loading settings and does not rewrite the private SMTP JSON. The normal address checks still run before SMTP connection. Omitting this option uses the saved caregiver address.
+
+See [GlyCat source walkthrough](GLYCAT_EMAIL_WALKTHROUGH.md) for every changed code line and [the current project status](../PROJECT_STATUS.md). Earlier design walkthroughs describe their historical versions.

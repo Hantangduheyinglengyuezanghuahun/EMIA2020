@@ -42,8 +42,7 @@ foreach ($kind in @('glucose', 'food')) {
             $maxY = [double]$payload.max_y
             function Px($value) { 90 + 1050 * ([double]$value - $minX) / ($maxX - $minX) }
             function Py($value) { 500 - 390 * [double]$value / $maxY }
-            for ($i = 0; $i -le 4; $i++) {
-                $value = $i * $maxY / 4
+            for ($value = 0; $value -le $maxY; $value += 60) {
                 $y = Py $value
                 Line 90 $y 1140 $y '#E2E8F0' 1
                 Text ([math]::Round($value)) 24 ($y - 18) 28
@@ -70,7 +69,10 @@ foreach ($kind in @('glucose', 'food')) {
             }
             if ($points.Count -gt 0) {
                 $point = $points[-1]
-                Text ([string]$point.y) ([math]::Min(1040, (Px $point.x)+8)) ([math]::Max(65, (Py $point.y)-32)) 24 '#245FE8'
+                if ($point.x -ne $payload.now -or $point.y -ne $payload.current_estimate.y) {
+                    Text ([string]$point.y) ([math]::Min(1040, (Px $point.x)+8)) ([math]::Max(65, (Py $point.y)-32)) 24 '#245FE8'
+                }
+                Text ([string]$points[0].y) ((Px $points[0].x)+8) ([math]::Max(65, (Py $points[0].y)-32)) 26 '#167D8D'
             } else { Text 'No measured history supplied' 100 120 24 '#AD6600' }
             for ($i = 1; $i -lt $forecast.Count; $i++) {
                 Line (Px $forecast[$i-1].x) (Py $forecast[$i-1].y) (Px $forecast[$i].x) (Py $forecast[$i].y) '#8055CF' 4 $true
@@ -83,6 +85,7 @@ foreach ($kind in @('glucose', 'food')) {
             Line ($estimateX-12) (Py $estimate.high) ($estimateX+12) (Py $estimate.high) '#8055CF' 4
             $brush = [System.Drawing.SolidBrush]::new((Colour '#8055CF'))
             try { $g.FillEllipse($brush, [single]($estimateX-8), [single]((Py $estimate.y)-8), 16, 16) } finally { $brush.Dispose() }
+            Text ([string]$estimate.y) ($estimateX+14) ((Py $estimate.y)-28) 30 '#8055CF'
             Line $estimateX (Py $estimate.y) (Px $forecast[0].x) (Py $forecast[0].y) '#8055CF' 4 $true
             Text ('Estimate now: ' + $estimate.y) ([math]::Max(95, $estimateX-250)) 80 28 '#8055CF'
             $nowX = Px $payload.now
